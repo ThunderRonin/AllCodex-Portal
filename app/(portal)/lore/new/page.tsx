@@ -43,7 +43,7 @@ export default function NewLorePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title,
-          type: loreType || "lore",
+          loreType: loreType || "lore",
           parentNoteId: parentId.trim() || undefined,
           content: content || undefined,
         }),
