@@ -59,13 +59,16 @@ export default function LorePage() {
 
   const { data: notes, isLoading } = useQuery<Note[]>({
     queryKey: ["lore", query],
-    queryFn: () =>
-      fetch(`/api/lore?q=${encodeURIComponent(query)}`).then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/lore?q=${encodeURIComponent(query)}`);
+      if (!r.ok) throw new Error((await r.json()).error ?? r.statusText);
+      return r.json() as Promise<Note[]>;
+    },
   });
 
-  const filtered = notes?.filter((n) =>
-    n.title.toLowerCase().includes(search.toLowerCase())
-  ) ?? [];
+  const filtered = Array.isArray(notes)
+    ? notes.filter((n) => n.title.toLowerCase().includes(search.toLowerCase()))
+    : [];
 
   return (
     <div className="space-y-6">
