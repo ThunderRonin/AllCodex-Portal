@@ -12,7 +12,7 @@ export interface EtapiCreds {
 }
 
 function makeAuthHeader(token: string) {
-  return `Basic ${Buffer.from(`${token}:`).toString("base64")}`;
+  return token; // Trilium accepts the raw ETAPI token directly in Authorization header
 }
 
 async function etapiFetch(creds: EtapiCreds, path: string, init: RequestInit = {}): Promise<Response> {

@@ -10,9 +10,8 @@ import { getEtapiCreds, getAkCreds } from "@/lib/get-creds";
 
 async function probeAllCodex(url: string, token: string): Promise<{ ok: boolean; version?: string; error?: string }> {
   try {
-    const authHeader = `Basic ${Buffer.from(`${token}:`).toString("base64")}`;
     const res = await fetch(`${url}/etapi/app-info`, {
-      headers: { Authorization: authHeader },
+      headers: { Authorization: token }, // raw token, Trilium's EtapiTokenAuth scheme
       signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
