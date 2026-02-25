@@ -97,3 +97,61 @@ export async function runBrainDump(rawText: string): Promise<BrainDumpResult> {
   });
   return res.json();
 }
+
+export async function getBrainDumpHistory(): Promise<BrainDumpHistoryEntry[]> {
+  const res = await akFetch("/brain-dump/history");
+  return res.json();
+}
+
+// ── RAG ───────────────────────────────────────────────────────────────────────
+
+export async function queryRag(text: string, topK = 10): Promise<RagChunk[]> {
+  const res = await akFetch("/rag/query", {
+    method: "POST",
+    body: JSON.stringify({ text, topK }),
+  });
+  const data = await res.json();
+  return data.results ?? [];
+}
+
+export async function getRagStatus(): Promise<{ indexedNotes: number; lastIndexed: string | null; model: string | null }> {
+  const res = await akFetch("/rag/status");
+  return res.json();
+}
+
+export async function triggerReindex(noteId?: string): Promise<{ ok: boolean }> {
+  if (noteId) {
+    const res = await akFetch(`/rag/reindex/${noteId}`, { method: "POST" });
+    return res.json();
+  }
+  const res = await akFetch("/rag/reindex", { method: "POST" });
+  return res.json();
+}
+
+// ── Intelligence ──────────────────────────────────────────────────────────────
+
+export async function checkConsistency(noteIds?: string[]): Promise<ConsistencyResult> {
+  const res = await akFetch("/consistency/check", {
+    method: "POST",
+    body: JSON.stringify({ noteIds }),
+  });
+  return res.json();
+}
+
+export async function suggestRelationships(text: string): Promise<{ suggestions: RelationshipSuggestion[] }> {
+  const res = await akFetch("/suggest/relationships", {
+    method: "POST",
+    body: JSON.stringify({ text }),
+  });
+  return res.json();
+}
+
+export async function getGaps(): Promise<GapResult> {
+  const res = await akFetch("/suggest/gaps");
+  return res.json();
+}
+
+export async function getHealth(): Promise<{ status: string; allcodex: string; ollama: string }> {
+  const res = await akFetch("/health");
+  return res.json();
+}

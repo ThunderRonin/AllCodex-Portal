@@ -99,3 +99,55 @@
   --sidebar-border:             oklch(0.18 0.03 270);
   --sidebar-ring:               oklch(0.73 0.13 72);
 }
+
+/* No separate .dark block — this is always dark */
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-crimson), Georgia, serif;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-cinzel), "Palatino Linotype", serif;
+    letter-spacing: 0.02em;
+  }
+}
+
+/* ── Grimoire prose styles (for rendered Trilium note HTML) ─────────────────── */
+.lore-content {
+  @apply leading-relaxed;
+  font-family: var(--font-crimson), Georgia, serif;
+  font-size: 1.075rem;
+}
+.lore-content h1, .lore-content h2, .lore-content h3 {
+  font-family: var(--font-cinzel), "Palatino Linotype", serif;
+  @apply text-primary mt-6 mb-2 border-b border-border pb-1;
+}
+.lore-content p { @apply mb-3; }
+.lore-content a { @apply text-primary underline underline-offset-2 hover:text-primary/80; }
+.lore-content ul, .lore-content ol { @apply pl-5 mb-3; }
+.lore-content li { @apply mb-1; }
+.lore-content blockquote {
+  @apply border-l-2 border-primary/50 pl-4 italic text-muted-foreground my-3;
+}
+.lore-content table { @apply w-full text-sm border-collapse mb-4; }
+.lore-content th { @apply border border-border bg-secondary px-3 py-1 text-left; }
+.lore-content td { @apply border border-border px-3 py-1; }
+
+/* ── Ornamental divider ─────────────────────────────────────────────────────── */
+.grimoire-divider {
+  @apply relative text-center my-6;
+}
+.grimoire-divider::before {
+  content: "✦";
+  @apply text-primary/50 text-xs tracking-[0.5em] block;
+}
+
+/* ── Scrollbar styling ───────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--background); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }

@@ -99,7 +99,51 @@ export async function getNoteContent(noteId: string): Promise<string> {
 export async function createNote(params: CreateNoteParams): Promise<EtapiNote & { branch: unknown }> {
   const res = await etapiFetch("/create-note", {
     method: "POST",
+    body: JSON.stringify({ type: "text", ...params }),
+  });
+  return res.json();
+}
+
+/** Update note metadata (title) */
+export async function patchNote(noteId: string, patch: { title?: string }): Promise<EtapiNote> {
+  const res = await etapiFetch(`/notes/${noteId}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+  return res.json();
+}
+
+/** Update note content */
+export async function putNoteContent(noteId: string, html: string): Promise<void> {
+  await etapiFetch(`/notes/${noteId}/content`, {
+    method: "PUT",
+    headers: { "Content-Type": "text/html" },
+    body: html,
+  });
+}
+
+/** Delete a note */
+export async function deleteNote(noteId: string): Promise<void> {
+  await etapiFetch(`/notes/${noteId}`, { method: "DELETE" });
+}
+
+/** Create an attribute (label or relation) on a note */
+export async function createAttribute(params: {
+  noteId: string;
+  type: "label" | "relation";
+  name: string;
+  value: string;
+  isInheritable?: boolean;
+}): Promise<EtapiAttribute> {
+  const res = await etapiFetch("/attributes", {
+    method: "POST",
     body: JSON.stringify(params),
   });
+  return res.json();
+}
+
+/** Get app info */
+export async function getAppInfo(): Promise<EtapiAppInfo> {
+  const res = await etapiFetch("/app-info");
   return res.json();
 }
