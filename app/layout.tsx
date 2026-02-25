@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Cinzel, Crimson_Text } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
@@ -21,6 +21,13 @@ export const metadata: Metadata = {
   description: "The worldbuilding grimoire for All Reach",
 };
 
+// Tells Dark Reader (and the browser) this page natively handles dark mode —
+// prevents Dark Reader from injecting data-darkreader-inline-stroke on SVGs
+// which would cause React hydration mismatches.
+export const viewport: Viewport = {
+  colorScheme: "dark",
+};
+
 export default function RootLayout({
   children,
 }: {
@@ -28,7 +35,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
-      <body className={`${cinzel.variable} ${crimson.variable} antialiased`}>
+      <body
+        className={`${cinzel.variable} ${crimson.variable} antialiased`}
+        suppressHydrationWarning
+      >
         <Providers>{children}</Providers>
       </body>
     </html>
