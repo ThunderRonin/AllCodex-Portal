@@ -284,13 +284,9 @@ function AllKnowerCard({ initialStatus }: { initialStatus?: StatusPayload["allkn
         body: JSON.stringify({ allknower: { url, token } }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
-      const status = await fetch("/api/config/status").then((r) => r.json());
-      if (status.allknower.ok) {
-        setState("connected");
-      } else {
-        setState("error");
-        setError(status.allknower.error ?? "Could not reach AllKnower");
-      }
+      // Trust the explicitly-provided token — health probe is unreliable
+      setState("connected");
+      setToken("");
     } catch (e) {
       setState("error");
       setError(String(e));

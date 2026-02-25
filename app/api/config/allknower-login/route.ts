@@ -28,7 +28,10 @@ export async function POST(req: NextRequest) {
   try {
     const res = await fetch(`${url}/api/auth/sign-in/email`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Origin": url, // better-auth requires Origin to be present
+      },
       body: JSON.stringify({ email, password }),
       signal: AbortSignal.timeout(8000),
     });
