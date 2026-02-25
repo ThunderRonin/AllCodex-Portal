@@ -12,6 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Radar, RefreshCw, AlertCircle, Info } from "lucide-react";
+import { ServiceBanner } from "@/components/portal/ServiceBanner";
 
 interface Gap {
   area: string;
@@ -46,7 +47,11 @@ export default function GapsPage() {
 
   const { data, isLoading, error, refetch } = useQuery<{ gaps: Gap[] }>({
     queryKey: ["gaps"],
-    queryFn: () => fetch("/api/ai/gaps").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/ai/gaps");
+      if (!r.ok) throw await r.json();
+      return r.json();
+    },
     enabled,
   });
 
@@ -103,11 +108,7 @@ export default function GapsPage() {
         </div>
       )}
 
-      {error && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
-          Failed to retrieve gaps analysis. Check AllKnower connectivity.
-        </div>
-      )}
+      {error && <ServiceBanner service="AllKnower" error={error} />}
 
       {!isLoading && gaps.length > 0 && (
         <>

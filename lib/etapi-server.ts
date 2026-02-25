@@ -6,6 +6,8 @@
  * Credentials are passed explicitly — resolved from cookies or env by get-creds.ts.
  */
 
+import { ServiceError } from "./route-error";
+
 export interface EtapiCreds {
   url: string;
   token: string;
@@ -16,18 +18,25 @@ function makeAuthHeader(token: string) {
 }
 
 async function etapiFetch(creds: EtapiCreds, path: string, init: RequestInit = {}): Promise<Response> {
-  const url = `${creds.url}/etapi${path}`;
-  const res = await fetch(url, {
-    ...init,
-    headers: {
-      Authorization: makeAuthHeader(creds.token),
-      "Content-Type": "application/json",
-      ...(init.headers ?? {}),
-    },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${creds.url}/etapi${path}`, {
+      ...init,
+      headers: {
+        Authorization: makeAuthHeader(creds.token),
+        "Content-Type": "application/json",
+        ...(init.headers ?? {}),
+      },
+    });
+  } catch {
+    throw new ServiceError("UNREACHABLE", 503, `AllCodex is unreachable at ${creds.url}`);
+  }
+  if (res.status === 401) {
+    throw new ServiceError("UNAUTHORIZED", 401, "AllCodex credentials are invalid. Go to Settings to reconnect.");
+  }
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`ETAPI ${init.method ?? "GET"} ${path} → ${res.status}: ${body}`);
+    throw new ServiceError("SERVICE_ERROR", 502, `ETAPI ${init.method ?? "GET"} ${path} → ${res.status}: ${body}`);
   }
   return res;
 }

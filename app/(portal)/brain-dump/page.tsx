@@ -23,6 +23,7 @@ import {
   Pencil,
 } from "lucide-react";
 import Link from "next/link";
+import { ServiceBanner } from "@/components/portal/ServiceBanner";
 
 interface BrainDumpResult {
   notesCreated: number;
@@ -51,18 +52,25 @@ export default function BrainDumpPage() {
   const [result, setResult] = useState<BrainDumpResult | null>(null);
   const queryClient = useQueryClient();
 
-  const { data: history, isLoading: historyLoading } = useQuery<HistoryEntry[]>({
+  const { data: history, isLoading: historyLoading, error: historyError } = useQuery<HistoryEntry[]>({
     queryKey: ["brain-dump-history"],
-    queryFn: () => fetch("/api/brain-dump/history").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/brain-dump/history");
+      if (!r.ok) throw await r.json();
+      return r.json();
+    },
   });
 
-  const { mutate: runDump, isPending } = useMutation({
-    mutationFn: (rawText: string) =>
-      fetch("/api/brain-dump", {
+  const { mutate: runDump, isPending, error: dumpError } = useMutation({
+    mutationFn: async (rawText: string) => {
+      const r = await fetch("/api/brain-dump", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rawText }),
-      }).then((r) => r.json()),
+      });
+      if (!r.ok) throw await r.json();
+      return r.json();
+    },
     onSuccess: (data: BrainDumpResult) => {
       setResult(data);
       setText("");
@@ -134,6 +142,8 @@ export default function BrainDumpPage() {
           </div>
         </CardContent>
       </Card>
+
+      {dumpError && !isPending && <ServiceBanner service="AllKnower" error={dumpError} />}
 
       {/* Result */}
       {result && (
@@ -211,6 +221,7 @@ export default function BrainDumpPage() {
         >
           Recent History
         </h2>
+        {historyError && <ServiceBanner service="AllKnower" error={historyError} />}
         {historyLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, i) => (

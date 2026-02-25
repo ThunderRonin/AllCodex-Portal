@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ShieldAlert, RefreshCw, AlertTriangle, Info, AlertCircle, X } from "lucide-react";
 import Link from "next/link";
+import { ServiceBanner } from "@/components/portal/ServiceBanner";
 
 interface ConsistencyIssue {
   type: "contradiction" | "timeline" | "orphan" | "naming";
@@ -50,13 +51,16 @@ export default function ConsistencyPage() {
     .map((s) => s.trim())
     .filter(Boolean);
 
-  const { mutate: runCheck, isPending } = useMutation({
-    mutationFn: () =>
-      fetch("/api/ai/consistency", {
+  const { mutate: runCheck, isPending, error: checkError } = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/ai/consistency", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ noteIds: noteIds.length ? noteIds : undefined }),
-      }).then((r) => r.json()),
+      });
+      if (!r.ok) throw await r.json();
+      return r.json();
+    },
     onSuccess: (data: ConsistencyResult) => setResult(data),
   });
 
@@ -118,6 +122,8 @@ export default function ConsistencyPage() {
           ))}
         </div>
       )}
+
+      {!isPending && checkError && <ServiceBanner service="AllKnower" error={checkError} />}
 
       {result && !isPending && (
         <div className="space-y-6">

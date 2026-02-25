@@ -16,6 +16,7 @@ import { Network, RefreshCw, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, Suspense } from "react";
+import { ServiceBanner } from "@/components/portal/ServiceBanner";
 
 interface Suggestion {
   targetNoteId: string;
@@ -47,13 +48,16 @@ function RelationshipsContent() {
     }
   }, [noteId]);
 
-  const { mutate: getSuggestions, isPending } = useMutation({
-    mutationFn: (t: string) =>
-      fetch("/api/ai/relationships", {
+  const { mutate: getSuggestions, isPending, error: suggestionError } = useMutation({
+    mutationFn: async (t: string) => {
+      const r = await fetch("/api/ai/relationships", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: t }),
-      }).then((r) => r.json()),
+      });
+      if (!r.ok) throw await r.json();
+      return r.json();
+    },
     onSuccess: (data: { suggestions: Suggestion[] }) =>
       setSuggestions(data.suggestions ?? []),
   });
@@ -111,6 +115,8 @@ function RelationshipsContent() {
           ))}
         </div>
       )}
+
+      {!isPending && suggestionError && <ServiceBanner service="AllKnower" error={suggestionError} />}
 
       {!isPending && suggestions.length > 0 && (
         <div className="space-y-3">

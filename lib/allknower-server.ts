@@ -5,24 +5,33 @@
  * Auth: Bearer token passed explicitly — resolved from cookies or env by get-creds.ts.
  */
 
+import { ServiceError } from "./route-error";
+
 export interface AkCreds {
   url: string;
   token: string;
 }
 
 async function akFetch(creds: AkCreds, path: string, init: RequestInit = {}): Promise<Response> {
-  const url = `${creds.url}${path}`;
-  const res = await fetch(url, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${creds.token}`,
-      "Content-Type": "application/json",
-      ...(init.headers ?? {}),
-    },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${creds.url}${path}`, {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${creds.token}`,
+        "Content-Type": "application/json",
+        ...(init.headers ?? {}),
+      },
+    });
+  } catch {
+    throw new ServiceError("UNREACHABLE", 503, `AllKnower is unreachable at ${creds.url}`);
+  }
+  if (res.status === 401) {
+    throw new ServiceError("UNAUTHORIZED", 401, "AllKnower credentials are invalid. Go to Settings to reconnect.");
+  }
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`AllKnower ${init.method ?? "GET"} ${path} → ${res.status}: ${body}`);
+    throw new ServiceError("SERVICE_ERROR", 502, `AllKnower ${init.method ?? "GET"} ${path} → ${res.status}: ${body}`);
   }
   return res;
 }
