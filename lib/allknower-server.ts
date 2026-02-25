@@ -2,22 +2,23 @@
  * Server-only AllKnower API client.
  * Never import this in Client Components — used only in API routes.
  *
- * Auth: Bearer token (better-auth session token stored in env).
+ * Auth: Bearer token passed explicitly — resolved from cookies or env by get-creds.ts.
  */
 
-const BASE_URL = process.env.ALLKNOWER_URL!;
-const BEARER = process.env.ALLKNOWER_BEARER_TOKEN!;
+export interface AkCreds {
+  url: string;
+  token: string;
+}
 
-const HEADERS = {
-  Authorization: `Bearer ${BEARER}`,
-  "Content-Type": "application/json",
-};
-
-async function akFetch(path: string, init: RequestInit = {}): Promise<Response> {
-  const url = `${BASE_URL}${path}`;
+async function akFetch(creds: AkCreds, path: string, init: RequestInit = {}): Promise<Response> {
+  const url = `${creds.url}${path}`;
   const res = await fetch(url, {
     ...init,
-    headers: { ...HEADERS, ...(init.headers ?? {}) },
+    headers: {
+      Authorization: `Bearer ${creds.token}`,
+      "Content-Type": "application/json",
+      ...(init.headers ?? {}),
+    },
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
@@ -90,23 +91,23 @@ export interface GapResult {
 
 // ── Brain Dump ────────────────────────────────────────────────────────────────
 
-export async function runBrainDump(rawText: string): Promise<BrainDumpResult> {
-  const res = await akFetch("/brain-dump", {
+export async function runBrainDump(creds: AkCreds, rawText: string): Promise<BrainDumpResult> {
+  const res = await akFetch(creds, "/brain-dump", {
     method: "POST",
     body: JSON.stringify({ rawText }),
   });
   return res.json();
 }
 
-export async function getBrainDumpHistory(): Promise<BrainDumpHistoryEntry[]> {
-  const res = await akFetch("/brain-dump/history");
+export async function getBrainDumpHistory(creds: AkCreds): Promise<BrainDumpHistoryEntry[]> {
+  const res = await akFetch(creds, "/brain-dump/history");
   return res.json();
 }
 
 // ── RAG ───────────────────────────────────────────────────────────────────────
 
-export async function queryRag(text: string, topK = 10): Promise<RagChunk[]> {
-  const res = await akFetch("/rag/query", {
+export async function queryRag(creds: AkCreds, text: string, topK = 10): Promise<RagChunk[]> {
+  const res = await akFetch(creds, "/rag/query", {
     method: "POST",
     body: JSON.stringify({ text, topK }),
   });
@@ -114,44 +115,44 @@ export async function queryRag(text: string, topK = 10): Promise<RagChunk[]> {
   return data.results ?? [];
 }
 
-export async function getRagStatus(): Promise<{ indexedNotes: number; lastIndexed: string | null; model: string | null }> {
-  const res = await akFetch("/rag/status");
+export async function getRagStatus(creds: AkCreds): Promise<{ indexedNotes: number; lastIndexed: string | null; model: string | null }> {
+  const res = await akFetch(creds, "/rag/status");
   return res.json();
 }
 
-export async function triggerReindex(noteId?: string): Promise<{ ok: boolean }> {
+export async function triggerReindex(creds: AkCreds, noteId?: string): Promise<{ ok: boolean }> {
   if (noteId) {
-    const res = await akFetch(`/rag/reindex/${noteId}`, { method: "POST" });
+    const res = await akFetch(creds, `/rag/reindex/${noteId}`, { method: "POST" });
     return res.json();
   }
-  const res = await akFetch("/rag/reindex", { method: "POST" });
+  const res = await akFetch(creds, "/rag/reindex", { method: "POST" });
   return res.json();
 }
 
 // ── Intelligence ──────────────────────────────────────────────────────────────
 
-export async function checkConsistency(noteIds?: string[]): Promise<ConsistencyResult> {
-  const res = await akFetch("/consistency/check", {
+export async function checkConsistency(creds: AkCreds, noteIds?: string[]): Promise<ConsistencyResult> {
+  const res = await akFetch(creds, "/consistency/check", {
     method: "POST",
     body: JSON.stringify({ noteIds }),
   });
   return res.json();
 }
 
-export async function suggestRelationships(text: string): Promise<{ suggestions: RelationshipSuggestion[] }> {
-  const res = await akFetch("/suggest/relationships", {
+export async function suggestRelationships(creds: AkCreds, text: string): Promise<{ suggestions: RelationshipSuggestion[] }> {
+  const res = await akFetch(creds, "/suggest/relationships", {
     method: "POST",
     body: JSON.stringify({ text }),
   });
   return res.json();
 }
 
-export async function getGaps(): Promise<GapResult> {
-  const res = await akFetch("/suggest/gaps");
+export async function getGaps(creds: AkCreds): Promise<GapResult> {
+  const res = await akFetch(creds, "/suggest/gaps");
   return res.json();
 }
 
-export async function getHealth(): Promise<{ status: string; allcodex: string; ollama: string }> {
-  const res = await akFetch("/health");
+export async function getHealth(creds: AkCreds): Promise<{ status: string; allcodex: string; ollama: string }> {
+  const res = await akFetch(creds, "/health");
   return res.json();
 }

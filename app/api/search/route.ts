@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchNotes } from "@/lib/etapi-server";
 import { queryRag } from "@/lib/allknower-server";
+import { getEtapiCreds, getAkCreds } from "@/lib/get-creds";
 
 export async function GET(req: NextRequest) {
   try {
@@ -8,11 +9,13 @@ export async function GET(req: NextRequest) {
     const mode = req.nextUrl.searchParams.get("mode") ?? "etapi"; // "etapi" | "rag"
 
     if (mode === "rag") {
-      const chunks = await queryRag(q, 15);
+      const creds = await getAkCreds();
+      const chunks = await queryRag(creds, q, 15);
       return NextResponse.json({ mode: "rag", results: chunks });
     }
 
-    const notes = await searchNotes(q || "#lore");
+    const creds = await getEtapiCreds();
+    const notes = await searchNotes(creds, q || "#lore");
     return NextResponse.json({ mode: "etapi", results: notes });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 502 });

@@ -22,6 +22,7 @@ import {
   Network,
   Microscope,
   Scroll,
+  Settings,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -47,6 +48,12 @@ const navItems = [
       { href: "/ai/consistency", icon: ShieldAlert, label: "Consistency" },
       { href: "/ai/relationships", icon: Network, label: "Relationships" },
       { href: "/ai/gaps", icon: Microscope, label: "Gap Detector" },
+    ],
+  },
+  {
+    label: "System",
+    items: [
+      { href: "/settings", icon: Settings, label: "Settings" },
     ],
   },
 ];

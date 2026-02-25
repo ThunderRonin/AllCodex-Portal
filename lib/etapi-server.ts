@@ -3,23 +3,27 @@
  * Never import this in Client Components — used only in API routes and Server Components.
  *
  * Auth: HTTP Basic auth with the ETAPI token as the username and an empty password.
+ * Credentials are passed explicitly — resolved from cookies or env by get-creds.ts.
  */
 
-const BASE_URL = process.env.ALLCODEX_URL!;
-const TOKEN = process.env.ALLCODEX_ETAPI_TOKEN!;
+export interface EtapiCreds {
+  url: string;
+  token: string;
+}
 
-const AUTH_HEADER = `Basic ${Buffer.from(`${TOKEN}:`).toString("base64")}`;
+function makeAuthHeader(token: string) {
+  return `Basic ${Buffer.from(`${token}:`).toString("base64")}`;
+}
 
-const HEADERS = {
-  Authorization: AUTH_HEADER,
-  "Content-Type": "application/json",
-};
-
-async function etapiFetch(path: string, init: RequestInit = {}): Promise<Response> {
-  const url = `${BASE_URL}/etapi${path}`;
+async function etapiFetch(creds: EtapiCreds, path: string, init: RequestInit = {}): Promise<Response> {
+  const url = `${creds.url}/etapi${path}`;
   const res = await fetch(url, {
     ...init,
-    headers: { ...HEADERS, ...(init.headers ?? {}) },
+    headers: {
+      Authorization: makeAuthHeader(creds.token),
+      "Content-Type": "application/json",
+      ...(init.headers ?? {}),
+    },
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
@@ -77,27 +81,27 @@ export interface EtapiAppInfo {
 // ── API ───────────────────────────────────────────────────────────────────────
 
 /** Search for notes using Trilium search syntax, e.g. "#template #lore" */
-export async function searchNotes(query: string): Promise<EtapiNote[]> {
-  const res = await etapiFetch(`/notes?search=${encodeURIComponent(query)}&limit=200`);
+export async function searchNotes(creds: EtapiCreds, query: string): Promise<EtapiNote[]> {
+  const res = await etapiFetch(creds, `/notes?search=${encodeURIComponent(query)}&limit=200`);
   const data = await res.json();
   return data.results ?? [];
 }
 
 /** Get a single note by ID */
-export async function getNote(noteId: string): Promise<EtapiNote> {
-  const res = await etapiFetch(`/notes/${noteId}`);
+export async function getNote(creds: EtapiCreds, noteId: string): Promise<EtapiNote> {
+  const res = await etapiFetch(creds, `/notes/${noteId}`);
   return res.json();
 }
 
 /** Get note HTML content */
-export async function getNoteContent(noteId: string): Promise<string> {
-  const res = await etapiFetch(`/notes/${noteId}/content`);
+export async function getNoteContent(creds: EtapiCreds, noteId: string): Promise<string> {
+  const res = await etapiFetch(creds, `/notes/${noteId}/content`);
   return res.text();
 }
 
 /** Create a new note */
-export async function createNote(params: CreateNoteParams): Promise<EtapiNote & { branch: unknown }> {
-  const res = await etapiFetch("/create-note", {
+export async function createNote(creds: EtapiCreds, params: CreateNoteParams): Promise<EtapiNote & { branch: unknown }> {
+  const res = await etapiFetch(creds, "/create-note", {
     method: "POST",
     body: JSON.stringify({ type: "text", ...params }),
   });
@@ -105,8 +109,8 @@ export async function createNote(params: CreateNoteParams): Promise<EtapiNote & 
 }
 
 /** Update note metadata (title) */
-export async function patchNote(noteId: string, patch: { title?: string }): Promise<EtapiNote> {
-  const res = await etapiFetch(`/notes/${noteId}`, {
+export async function patchNote(creds: EtapiCreds, noteId: string, patch: { title?: string }): Promise<EtapiNote> {
+  const res = await etapiFetch(creds, `/notes/${noteId}`, {
     method: "PATCH",
     body: JSON.stringify(patch),
   });
@@ -114,8 +118,8 @@ export async function patchNote(noteId: string, patch: { title?: string }): Prom
 }
 
 /** Update note content */
-export async function putNoteContent(noteId: string, html: string): Promise<void> {
-  await etapiFetch(`/notes/${noteId}/content`, {
+export async function putNoteContent(creds: EtapiCreds, noteId: string, html: string): Promise<void> {
+  await etapiFetch(creds, `/notes/${noteId}/content`, {
     method: "PUT",
     headers: { "Content-Type": "text/html" },
     body: html,
@@ -123,19 +127,19 @@ export async function putNoteContent(noteId: string, html: string): Promise<void
 }
 
 /** Delete a note */
-export async function deleteNote(noteId: string): Promise<void> {
-  await etapiFetch(`/notes/${noteId}`, { method: "DELETE" });
+export async function deleteNote(creds: EtapiCreds, noteId: string): Promise<void> {
+  await etapiFetch(creds, `/notes/${noteId}`, { method: "DELETE" });
 }
 
 /** Create an attribute (label or relation) on a note */
-export async function createAttribute(params: {
+export async function createAttribute(creds: EtapiCreds, params: {
   noteId: string;
   type: "label" | "relation";
   name: string;
   value: string;
   isInheritable?: boolean;
 }): Promise<EtapiAttribute> {
-  const res = await etapiFetch("/attributes", {
+  const res = await etapiFetch(creds, "/attributes", {
     method: "POST",
     body: JSON.stringify(params),
   });
@@ -143,7 +147,7 @@ export async function createAttribute(params: {
 }
 
 /** Get app info */
-export async function getAppInfo(): Promise<EtapiAppInfo> {
-  const res = await etapiFetch("/app-info");
+export async function getAppInfo(creds: EtapiCreds): Promise<EtapiAppInfo> {
+  const res = await etapiFetch(creds, "/app-info");
   return res.json();
 }
