@@ -1,36 +1,83 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AllCodex Portal
+
+A web portal for [AllCodex](https://github.com/ThunderRonin/AllCodex) (a customized TriliumNext instance) and [AllKnower](https://github.com/ThunderRonin/AllKnower), the AI knowledge service that powers it. Built with Next.js 16, shadcn/ui, and TanStack Query.
+
+The portal gives you a clean interface for browsing lore, running brain dumps, and using AI tools — without opening the full AllCodex desktop app.
+
+## Features
+
+- **Lore Browser** — browse, create, and edit notes tagged with `#lore` in AllCodex
+- **Brain Dump** — paste raw worldbuilding thoughts and let AllKnower extract and file entities automatically
+- **AI Tools** — consistency checker, lore gap detector, and relationship suggestions powered by AllKnower
+- **Semantic Search** — RAG-based search across your lore using AllKnower's vector index, plus direct ETAPI label queries
+- **Settings** — connect to AllCodex via ETAPI token or password login, and AllKnower via bearer token or sign-in
+
+## Requirements
+
+- [AllCodex](https://github.com/ThunderRonin/AllCodex) running and accessible (ETAPI enabled)
+- [AllKnower](https://github.com/ThunderRonin/AllKnower) running for AI features
+- Node.js 20+ or Bun
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
+bun install
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) and go to Settings to connect to AllCodex and AllKnower. Credentials are stored as HTTP-only cookies — no `.env` required, though env vars work as a fallback.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Environment variables (optional)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+If you prefer env vars over the Settings UI, create a `.env.local`:
 
-## Learn More
+```env
+ALLCODEX_URL=http://localhost:8080
+ALLCODEX_ETAPI_TOKEN=your_token_here
+ALLKNOWER_URL=http://localhost:3001
+ALLKNOWER_BEARER_TOKEN=your_token_here
+```
 
-To learn more about Next.js, take a look at the following resources:
+Cookie-based settings take priority when present.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+app/
+  (portal)/         # All portal pages
+    page.tsx        # Dashboard
+    lore/           # Lore browser, detail, create, edit
+    brain-dump/     # Brain dump input and history
+    ai/             # Consistency, relationships, gap detector
+    search/         # Semantic and label search
+    settings/       # Service connection config
+  api/              # Next.js API routes (proxy to AllCodex/AllKnower)
+components/
+  portal/           # App-specific components (sidebar, banners)
+  ui/               # shadcn/ui components
+lib/
+  etapi-server.ts   # AllCodex ETAPI client (server-only)
+  allknower-server.ts  # AllKnower API client (server-only)
+  get-creds.ts      # Resolves credentials from cookies or env
+```
 
-## Deploy on Vercel
+## Building for Production
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+bun run build
+bun start
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Contributing
+
+Contributions are welcome. If you find a bug or want to add something, open an issue first so we can discuss the approach before you write any code.
+
+A few things to keep in mind:
+
+- The API routes in `app/api/` are thin proxies. Heavy logic belongs in AllKnower, not here.
+- `lib/etapi-server.ts` and `lib/allknower-server.ts` are server-only. Never import them in client components.
+- Keep new UI components in `components/portal/` and use the existing shadcn primitives in `components/ui/` rather than adding new UI libraries.
+- Credentials must never be logged or exposed to the client.
+
+To run locally during development, you need AllCodex and AllKnower both running. The portal will show service banners for any features that require a service that isn't connected.
+
