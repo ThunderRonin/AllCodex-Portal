@@ -21,9 +21,10 @@ import {
   Unlink,
   Key,
   Lock,
-  BookOpen,
   Brain,
   Scroll,
+  UserPlus,
+  LogIn,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -260,42 +261,35 @@ function AllCodexCard({ initialStatus }: { initialStatus?: StatusPayload["allcod
 
 // ── AllKnower card ─────────────────────────────────────────────────────────────
 
+type AkMode = "idle" | "login" | "register";
+
 function AllKnowerCard({ initialStatus }: { initialStatus?: StatusPayload["allknower"] }) {
   const [state, setState] = useState<ConnState>(
     initialStatus?.ok ? "connected" : initialStatus?.configured ? "error" : "disconnected"
   );
   const [url, setUrl] = useState(initialStatus?.url ?? "http://localhost:3001");
-  const [token, setToken] = useState("");
+  const [mode, setMode] = useState<AkMode>("idle");
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const isConnected = state === "connected";
 
-  async function handleConnectToken() {
-    if (!url || !token) return;
-    setLoading(true);
+  function resetForm() {
+    setEmail("");
+    setName("");
+    setPassword("");
     setError(null);
-    try {
-      const res = await fetch("/api/config/connect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ allknower: { url, token } }),
-      });
-      if (!res.ok) throw new Error((await res.json()).error);
-      // Trust the explicitly-provided token — health probe is unreliable
-      setState("connected");
-      setToken("");
-    } catch (e) {
-      setState("error");
-      setError(String(e));
-    } finally {
-      setLoading(false);
-    }
   }
 
-  async function handleSignIn() {
+  function switchMode(next: AkMode) {
+    resetForm();
+    setMode(next);
+  }
+
+  async function handleLogin() {
     if (!url || !email || !password) return;
     setLoading(true);
     setError(null);
@@ -308,8 +302,31 @@ function AllKnowerCard({ initialStatus }: { initialStatus?: StatusPayload["allkn
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setState("connected");
-      setEmail("");
-      setPassword("");
+      resetForm();
+      setMode("idle");
+    } catch (e) {
+      setState("error");
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleRegister() {
+    if (!url || !email || !name || !password) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/config/allknower-register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, email, name, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setState("connected");
+      resetForm();
+      setMode("idle");
     } catch (e) {
       setState("error");
       setError(String(e));
@@ -322,10 +339,8 @@ function AllKnowerCard({ initialStatus }: { initialStatus?: StatusPayload["allkn
     setLoading(true);
     await fetch("/api/config/disconnect?service=allknower", { method: "DELETE" });
     setState("disconnected");
-    setToken("");
-    setEmail("");
-    setPassword("");
-    setError(null);
+    resetForm();
+    setMode("idle");
     setLoading(false);
   }
 
@@ -360,75 +375,132 @@ function AllKnowerCard({ initialStatus }: { initialStatus?: StatusPayload["allkn
           />
         </div>
 
-        {!isConnected && (
-          <Tabs defaultValue="token" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="token">
-                <Key className="h-3.5 w-3.5 mr-1.5" /> Bearer Token
-              </TabsTrigger>
-              <TabsTrigger value="signin">
-                <BookOpen className="h-3.5 w-3.5 mr-1.5" /> Sign In
-              </TabsTrigger>
-            </TabsList>
+        {!isConnected && mode === "idle" && (
+          <div className="flex gap-2">
+            <Button
+              className="flex-1 gap-2"
+              onClick={() => switchMode("login")}
+              disabled={!url}
+            >
+              <LogIn className="h-4 w-4" />
+              Login
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1 gap-2"
+              onClick={() => switchMode("register")}
+              disabled={!url}
+            >
+              <UserPlus className="h-4 w-4" />
+              Register
+            </Button>
+          </div>
+        )}
 
-            <TabsContent value="token" className="space-y-3 mt-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="allknower-token">Bearer Token</Label>
-                <Input
-                  id="allknower-token"
-                  type="password"
-                  placeholder="Paste your AllKnower bearer token"
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
-                  disabled={loading}
-                />
-              </div>
+        {!isConnected && mode === "login" && (
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="ak-login-email">Email</Label>
+              <Input
+                id="ak-login-email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
+                autoComplete="email"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ak-login-password">Password</Label>
+              <Input
+                id="ak-login-password"
+                type="password"
+                placeholder="Your AllKnower password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+                autoComplete="current-password"
+              />
+            </div>
+            <div className="flex gap-2">
               <Button
-                className="w-full gap-2"
-                onClick={handleConnectToken}
-                disabled={loading || !url || !token}
-              >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
-                Connect
-              </Button>
-            </TabsContent>
-
-            <TabsContent value="signin" className="space-y-3 mt-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="allknower-email">Email</Label>
-                <Input
-                  id="allknower-email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={loading}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="allknower-password">Password</Label>
-                <Input
-                  id="allknower-password"
-                  type="password"
-                  placeholder="Your AllKnower password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={loading}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Signs in via AllKnower (better-auth) and stores the session token automatically.
-              </p>
-              <Button
-                className="w-full gap-2"
-                onClick={handleSignIn}
+                className="flex-1 gap-2"
+                onClick={handleLogin}
                 disabled={loading || !url || !email || !password}
               >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
-                Sign In &amp; Connect
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
+                Login
               </Button>
-            </TabsContent>
-          </Tabs>
+              <Button
+                variant="ghost"
+                className="gap-2"
+                onClick={() => switchMode("idle")}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {!isConnected && mode === "register" && (
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="ak-reg-name">Name</Label>
+              <Input
+                id="ak-reg-name"
+                type="text"
+                placeholder="Your display name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={loading}
+                autoComplete="name"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ak-reg-email">Email</Label>
+              <Input
+                id="ak-reg-email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
+                autoComplete="email"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ak-reg-password">Password</Label>
+              <Input
+                id="ak-reg-password"
+                type="password"
+                placeholder="Choose a password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+                autoComplete="new-password"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                className="flex-1 gap-2"
+                onClick={handleRegister}
+                disabled={loading || !url || !email || !name || !password}
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+                Register
+              </Button>
+              <Button
+                variant="ghost"
+                className="gap-2"
+                onClick={() => switchMode("idle")}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
         )}
 
         {isConnected && (
