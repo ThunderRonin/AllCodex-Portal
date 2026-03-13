@@ -21,6 +21,8 @@ import {
   RefreshCw,
   BookOpen,
   Pencil,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import Link from "next/link";
 import { ServiceBanner } from "@/components/portal/ServiceBanner";
@@ -40,17 +42,33 @@ interface BrainDumpResult {
 interface HistoryEntry {
   id: string;
   rawText: string;
+  summary: string | null;
   notesCreated: number;
   notesUpdated: number;
   model: string;
   tokensUsed: number | null;
   createdAt: string;
+  entities: Array<{
+    action: "created" | "updated";
+    noteId: string;
+    title: string;
+    type: string;
+  }> | null;
 }
 
 export default function BrainDumpPage() {
   const [text, setText] = useState("");
   const [result, setResult] = useState<BrainDumpResult | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
+
+  function toggleExpand(id: string) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
 
   const { data: history, isLoading: historyLoading, error: historyError } = useQuery<HistoryEntry[]>({
     queryKey: ["brain-dump-history"],
@@ -234,41 +252,103 @@ export default function BrainDumpPage() {
           </p>
         ) : (
           <div className="space-y-2">
-            {history.map((entry) => (
-              <div
-                key={entry.id}
-                className="rounded-lg border border-border/40 bg-card/40 p-3 hover:border-border/70 transition-colors"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <p className="text-sm line-clamp-2 text-foreground/70">
-                    {entry.rawText.slice(0, 120)}
-                    {entry.rawText.length > 120 ? "…" : ""}
-                  </p>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {entry.notesCreated > 0 && (
-                      <Badge variant="outline" className="text-[10px] text-green-400 border-green-500/40">
-                        +{entry.notesCreated}
-                      </Badge>
+            {history.map((entry) => {
+              const isExpanded = expandedIds.has(entry.id);
+              const needsTruncation = entry.rawText.length > 120;
+              const hasMore = needsTruncation || !!entry.summary || !!entry.entities?.length;
+              return (
+                <div
+                  key={entry.id}
+                  className="rounded-lg border border-border/40 bg-card/40 p-3 hover:border-border/70 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm text-foreground/70 whitespace-pre-wrap break-words">
+                      {isExpanded || !needsTruncation
+                        ? entry.rawText
+                        : entry.rawText.slice(0, 120) + "…"}
+                    </p>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {entry.notesCreated > 0 && (
+                        <Badge variant="outline" className="text-[10px] text-green-400 border-green-500/40">
+                          +{entry.notesCreated}
+                        </Badge>
+                      )}
+                      {entry.notesUpdated > 0 && (
+                        <Badge variant="outline" className="text-[10px] text-yellow-400 border-yellow-500/40">
+                          ~{entry.notesUpdated}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* LLM response — shown when expanded */}
+                  {isExpanded && entry.summary && (
+                    <div className="mt-3 pt-3 border-t border-border/30 space-y-3">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                        <Brain className="h-3 w-3" /> AllKnower Summary
+                      </p>
+                      <p className="text-sm text-foreground/80 leading-relaxed italic border-l-2 border-primary/40 pl-3">
+                        {entry.summary}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Entities — shown when expanded */}
+                  {isExpanded && entry.entities && entry.entities.length > 0 && (
+                    <div className="mt-3 space-y-1.5">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        Entries affected
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {entry.entities.map((e) => (
+                          <Link
+                            key={e.noteId}
+                            href={`/lore/${e.noteId}`}
+                            className="flex items-center gap-1.5 text-xs bg-secondary rounded-md px-2 py-1 hover:bg-accent transition-colors"
+                          >
+                            <BookOpen className="h-3 w-3 text-primary" />
+                            {e.title}
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] ${
+                                e.action === "created"
+                                  ? "text-green-400 border-green-500/40"
+                                  : "text-yellow-400 border-yellow-500/40"
+                              }`}
+                            >
+                              {e.action}
+                            </Badge>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground/60">
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {new Date(entry.createdAt).toLocaleString()}
+                    </span>
+                    {entry.model && <span>{entry.model}</span>}
+                    {entry.tokensUsed && (
+                      <span>{entry.tokensUsed.toLocaleString()} tokens</span>
                     )}
-                    {entry.notesUpdated > 0 && (
-                      <Badge variant="outline" className="text-[10px] text-yellow-400 border-yellow-500/40">
-                        ~{entry.notesUpdated}
-                      </Badge>
+                    {hasMore && (
+                      <button
+                        onClick={() => toggleExpand(entry.id)}
+                        className="flex items-center gap-0.5 ml-auto text-muted-foreground/60 hover:text-foreground transition-colors"
+                      >
+                        {isExpanded ? (
+                          <><ChevronUp className="h-3 w-3" /> Show less</>
+                        ) : (
+                          <><ChevronDown className="h-3 w-3" /> Show more</>
+                        )}
+                      </button>
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground/60">
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {new Date(entry.createdAt).toLocaleString()}
-                  </span>
-                  {entry.model && <span>{entry.model}</span>}
-                  {entry.tokensUsed && (
-                    <span>{entry.tokensUsed.toLocaleString()} tokens</span>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

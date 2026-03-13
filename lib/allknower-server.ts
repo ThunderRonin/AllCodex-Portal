@@ -53,11 +53,18 @@ export interface BrainDumpResult {
 export interface BrainDumpHistoryEntry {
   id: string;
   rawText: string;
+  summary: string | null;
   notesCreated: number;
   notesUpdated: number;
   model: string;
   tokensUsed: number | null;
   createdAt: string;
+  entities: Array<{
+    action: "created" | "updated";
+    noteId: string;
+    title: string;
+    type: string;
+  }> | null;
 }
 
 export interface RagChunk {
