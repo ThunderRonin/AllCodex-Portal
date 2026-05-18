@@ -23,8 +23,10 @@ import {
   ScrollText,
   Shield,
   BookOpen,
+  Map,
 } from "lucide-react";
 import { RelationshipGraph } from "@/components/portal/RelationshipGraph";
+import { MapSection } from "@/components/portal/MapSection";
 import { Breadcrumbs } from "@/components/portal/Breadcrumbs";
 import { TableOfContents } from "@/components/portal/TableOfContents";
 import { NotePreviewLink } from "@/components/portal/NotePreview";
@@ -285,6 +287,7 @@ export default function LoreDetailPage({
   const loreType = note?.attributes?.find((a) => a.name === "loreType")?.value ?? "lore";
   const isGmOnly = note?.attributes?.some((a) => a.type === "label" && a.name === "gmOnly") ?? false;
   const isDraft = note?.attributes?.some((a) => a.type === "label" && a.name === "draft") ?? false;
+  const isGeoMap = note?.attributes?.some((a) => a.name === "viewType" && a.value === "geoMap") ?? false;
   const groupedRelations = (note?.resolvedRelations ?? []).reduce<Record<string, ResolvedRelation[]>>((groups, relation) => {
     const label = relationLabel(relation.name);
     if (!groups[label]) groups[label] = [];
@@ -386,6 +389,16 @@ export default function LoreDetailPage({
 
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-8">
+          {isGeoMap && (
+            <section className="space-y-3">
+              <div className="wiki-section-header">
+                <Map className="h-4 w-4" />
+                <h2 className="wiki-section-title">Map</h2>
+              </div>
+              <MapSection noteId={id} />
+            </section>
+          )}
+
           <Card className="wiki-panel">
             <CardContent className="p-6 sm:p-8 space-y-8">
               <TableOfContents contentRef={contentRef} />
