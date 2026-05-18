@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import MapViewer, { type MapPin } from "@/components/portal/MapViewer";
+import MapUpload from "@/components/portal/MapUpload";
 
 interface MapData {
     imageUrl: string | null;
@@ -16,15 +17,19 @@ export function MapSection({ noteId }: { noteId: string }) {
     const [data, setData] = useState<MapData | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
+    const loadMap = useCallback(() => {
         fetch(`/api/lore/${noteId}/map`)
             .then((r) => {
                 if (!r.ok) throw new Error("Failed to load map");
                 return r.json();
             })
             .then(setData)
-            .catch((e) => setError(e.message));
+            .catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load map"));
     }, [noteId]);
+
+    useEffect(() => {
+        loadMap();
+    }, [loadMap]);
 
     // Memoize to avoid unnecessary Leaflet map teardown/rebuild
     const handlePinClick = useCallback(
@@ -35,13 +40,7 @@ export function MapSection({ noteId }: { noteId: string }) {
     if (error) return <p className="text-destructive text-sm">{error}</p>;
     if (!data) return <div className="h-[400px] bg-muted rounded-lg animate-pulse" />;
     if (!data.imageUrl) {
-        return (
-            <div className="flex items-center justify-center h-[400px] bg-muted rounded-lg">
-                <p className="text-muted-foreground">
-                    No map image found. Add an image child note or a mapImage relation to this GeoMap.
-                </p>
-            </div>
-        );
+        return <MapUpload noteId={noteId} onUploaded={loadMap} />;
     }
 
     return (
