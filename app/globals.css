@@ -1,3 +1,4 @@
+@import "leaflet/dist/leaflet.css";
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -407,4 +408,20 @@
 .lore-mention::before {
   content: "@";
   opacity: 0.5;
+}
+
+/* ── Fantasy Map Pins ──────────────────────────────────────────────────────── */
+.map-pin-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.map-pin-popup {
+  font-family: var(--font-sans);
+}
+
+.leaflet-container {
+  background: var(--card);
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
 }
