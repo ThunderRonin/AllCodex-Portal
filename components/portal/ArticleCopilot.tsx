@@ -267,8 +267,9 @@ export function ArticleCopilot() {
     setApplyResult(null);
 
     try {
+      const sessionId = useCopilotStore.getState().conversations[noteId]?.sessionId;
       let accumulated = "";
-      for await (const event of stream(`/api/lore/${noteId}/copilot/stream`, { messages: nextMessages })) {
+      for await (const event of stream(`/api/lore/${noteId}/copilot/stream`, { messages: nextMessages, sessionId: sessionId ?? undefined })) {
         if (event.event === "token") {
           accumulated += (event.data as { content: string }).content;
           store.updateLastMessage(noteId, accumulated);
@@ -276,6 +277,9 @@ export function ArticleCopilot() {
           const response = event.data as CopilotChatResponse;
           store.updateLastMessage(noteId, response.assistantMessage);
           store.setPendingProposal(noteId, response.proposal ?? null);
+          if (response.sessionId) {
+            store.setSessionId(noteId, response.sessionId);
+          }
           setLastResponse(response);
           setIsRedirecting(false);
           setRedirectDraft("");

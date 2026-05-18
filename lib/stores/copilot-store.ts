@@ -5,6 +5,7 @@ export type CopilotConversation = {
   messages: ChatMessage[];
   pendingProposal: CopilotProposal | null;
   selectedTargetIds: string[];
+  sessionId: string | null;
 };
 
 export interface CopilotState {
@@ -23,6 +24,7 @@ export interface CopilotState {
   updateLastMessage: (noteId: string, content: string) => void;
   setPendingProposal: (noteId: string, proposal: CopilotProposal | null) => void;
 
+  setSessionId: (noteId: string, sessionId: string) => void;
   dismissProposal: (noteId: string) => void;
   redirectWithInstructions: (noteId: string, instructions: string) => void;
   
@@ -43,7 +45,7 @@ export const useCopilotStore = create<CopilotState>()((set, get) => ({
       activeNoteId: noteId,
       conversations: {
         ...state.conversations,
-        [noteId]: existing || { messages: [], pendingProposal: null, selectedTargetIds: [] },
+        [noteId]: existing || { messages: [], pendingProposal: null, selectedTargetIds: [], sessionId: null },
       },
     };
   }),
@@ -53,7 +55,7 @@ export const useCopilotStore = create<CopilotState>()((set, get) => ({
   setLastError: (error) => set({ lastError: error }),
 
   sendMessage: (noteId, content) => set((state) => {
-    const conv = state.conversations[noteId] || { messages: [], pendingProposal: null, selectedTargetIds: [] };
+    const conv = state.conversations[noteId] || { messages: [], pendingProposal: null, selectedTargetIds: [], sessionId: null };
     return {
       conversations: {
         ...state.conversations,
@@ -84,7 +86,7 @@ export const useCopilotStore = create<CopilotState>()((set, get) => ({
   }),
 
   addMessage: (noteId, message) => set((state) => {
-    const conv = state.conversations[noteId] || { messages: [], pendingProposal: null, selectedTargetIds: [] };
+    const conv = state.conversations[noteId] || { messages: [], pendingProposal: null, selectedTargetIds: [], sessionId: null };
     return {
       conversations: {
         ...state.conversations,
@@ -117,6 +119,17 @@ export const useCopilotStore = create<CopilotState>()((set, get) => ({
           pendingProposal: proposal,
           selectedTargetIds: proposal ? proposal.targets.map(t => t.targetId) : [],
         },
+      },
+    };
+  }),
+
+  setSessionId: (noteId, sessionId) => set((state) => {
+    const conv = state.conversations[noteId];
+    if (!conv) return state;
+    return {
+      conversations: {
+        ...state.conversations,
+        [noteId]: { ...conv, sessionId },
       },
     };
   }),

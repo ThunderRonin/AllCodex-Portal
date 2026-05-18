@@ -140,6 +140,7 @@ export const CopilotCitationSchema = z.object({
 });
 
 export const CopilotChatResponseSchema = z.object({
+  sessionId: z.string().optional(),
   assistantMessage: z.string(),
   citations: z.array(CopilotCitationSchema),
   proposal: CopilotProposalSchema.nullable(),
@@ -182,6 +183,7 @@ export const CopilotRagChunkSchema = z.object({
 
 export const CopilotRequestSchema = z.object({
   noteId: z.string(),
+  sessionId: z.string().optional(),
   transcript: z.array(ChatMessageSchema),
   currentNote: CopilotNoteContextSchema,
   linkedNotes: z.array(CopilotNoteContextSchema),

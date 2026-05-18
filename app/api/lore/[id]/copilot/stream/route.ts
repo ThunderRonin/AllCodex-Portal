@@ -8,6 +8,7 @@ import { z } from "zod";
 
 const ChatBodySchema = z.object({
   messages: z.array(ChatMessageSchema),
+  sessionId: z.string().optional(),
 });
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -24,6 +25,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     return proxySSE(akCreds, "/copilot/article/stream", {
       noteId: id,
+      sessionId: body.sessionId,
       transcript,
       ...context,
     });
