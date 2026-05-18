@@ -76,15 +76,8 @@ function RelationshipsContent() {
         return r.text();
       })
       .then((html) => {
-        const plain = html
-          .replace(/<[^>]+>/g, " ")
-          .replace(/&nbsp;/g, " ")
-          .replace(/&amp;/g, "&")
-          .replace(/&lt;/g, "<")
-          .replace(/&gt;/g, ">")
-          .replace(/&quot;/g, '"')
-          .replace(/\s+/g, " ")
-          .trim();
+        const doc = new DOMParser().parseFromString(html, "text/html");
+        const plain = (doc.body.textContent || "").replace(/\s+/g, " ").trim();
         setText(plain);
       })
       .catch(() => {

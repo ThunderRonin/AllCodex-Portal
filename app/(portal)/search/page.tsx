@@ -179,7 +179,7 @@ function SearchContent() {
                     </p>
                     {r.content && (
                       <p className="text-xs text-muted-foreground truncate max-w-xs mt-0.5">
-                        {r.content.replace(/<[^>]+>/g, "").slice(0, 80)}…
+                        {new DOMParser().parseFromString(r.content, "text/html").body.textContent?.slice(0, 80)}…
                       </p>
                     )}
                   </div>
