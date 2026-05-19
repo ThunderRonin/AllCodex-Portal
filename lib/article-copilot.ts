@@ -539,10 +539,6 @@ export async function applyArticleCopilotProposal(
         title: target.title ?? "Untitled Lore Entry",
         content: "",
       });
-      createdIdMap.set(target.targetId, created.note.noteId);
-      createdNoteIds.push(created.note.noteId);
-      existingTargets.set(created.note.noteId, created.note);
-
       await createAttribute(creds, {
         noteId: created.note.noteId,
         type: "label",
@@ -555,6 +551,10 @@ export async function applyArticleCopilotProposal(
         name: "loreType",
         value: target.loreType ?? "lore",
       });
+
+      createdIdMap.set(target.targetId, created.note.noteId);
+      createdNoteIds.push(created.note.noteId);
+      existingTargets.set(created.note.noteId, created.note);
     } catch (e) {
       console.error("Failed to create target", target.targetId, e);
       failedTargetIds.add(target.targetId);

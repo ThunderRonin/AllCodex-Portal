@@ -33,9 +33,16 @@ export interface AkCreds {
  */
 export async function getEtapiCreds(): Promise<EtapiCreds> {
   const jar = await cookies();
-  const allknowerUrl = jar.get("allknower_url")?.value ?? process.env.ALLKNOWER_URL ?? "";
+  const rawAllknowerUrl = jar.get("allknower_url")?.value ?? process.env.ALLKNOWER_URL ?? "";
   const allknowerToken = jar.get("allknower_token")?.value ?? "";
   const portalInternalSecret = process.env.PORTAL_INTERNAL_SECRET ?? "";
+
+  let allknowerUrl = "";
+  try {
+    allknowerUrl = rawAllknowerUrl ? validateAllKnowerUrl(rawAllknowerUrl) : "";
+  } catch {
+    return { url: "", token: "" };
+  }
 
   if (allknowerUrl && allknowerToken && portalInternalSecret) {
     const creds = await resolveAllCodexCredentials(

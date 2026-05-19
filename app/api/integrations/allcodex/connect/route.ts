@@ -58,6 +58,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    try {
+      const parsed = new URL(coreUrl);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        throw new Error("invalid protocol");
+      }
+    } catch {
+      return NextResponse.json(
+        { error: "INVALID_REQUEST", message: "Invalid AllCodex URL." },
+        { status: 400 },
+      );
+    }
+
     const finalToken = token || await loginToCore(coreUrl, password);
     const status = await connectAllCodexIntegration(creds, coreUrl, finalToken);
     return NextResponse.json({ ok: true, integration: status });
