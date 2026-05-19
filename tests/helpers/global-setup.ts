@@ -24,7 +24,7 @@ export const STORAGE_STATE_PATH = path.resolve(
   __dirname,
   ".auth/storage-state.json"
 );
-const TEST_PASSWORD =
+const TEST_PASSWORD = // NOSONAR — test credential with env override, not a production secret
   process.env.PLAYWRIGHT_TEST_PASSWORD ??
   "allcodex-playwright-test-password";
 
