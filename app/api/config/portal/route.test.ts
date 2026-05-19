@@ -18,8 +18,7 @@ describe('/api/config/portal', () => {
 
   describe('GET', () => {
     it('returns root configured from cookie', async () => {
-      const req = new MockNextRequest('http://localhost/api/config/portal') as any;
-      const res = await GET(req) as any;
+      const res = await GET() as any;
       
       expect(res.status).toBe(200);
       expect(res.body.loreRootNoteId).toBe('root-1');

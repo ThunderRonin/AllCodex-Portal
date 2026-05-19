@@ -91,6 +91,49 @@ test("renders relation chips linking to the correct lore entries", async ({ page
   await expectNoConsoleErrors(errors);
 });
 
+test("filters non-lore system backlinks out of related entries", async ({ page }) => {
+  const errors = attachConsoleErrorCollector(page);
+  await installPortalApiMocks(page, {
+    notes: [
+      buildNote({
+        noteId: "note-1",
+        title: "Aria Vale",
+        attributes: [
+          { attributeId: "attr-lore-note-1", name: "lore", value: "", type: "label" },
+          { attributeId: "attr-type-note-1", name: "loreType", value: "character", type: "label" },
+        ],
+        content: "<h1>Aria Vale</h1><p>Warden of the northern archive.</p>",
+      }),
+      buildNote({
+        noteId: "note-2",
+        title: "Aether Keep",
+        attributes: [
+          { attributeId: "attr-lore-note-2", name: "lore", value: "", type: "label" },
+          { attributeId: "attr-type-note-2", name: "loreType", value: "location", type: "label" },
+        ],
+      }),
+      buildNote({
+        noteId: "sys-1",
+        title: "Hidden Notes",
+        attributes: [],
+      }),
+    ],
+    backlinks: {
+      "note-1": [
+        { noteId: "note-2", title: "Aether Keep", loreType: "location" },
+        { noteId: "sys-1", title: "Hidden Notes", loreType: null },
+      ],
+    },
+  });
+
+  await page.goto("/lore/note-1");
+
+  const relatedSection = page.getByRole("heading", { name: /related entries/i }).locator("..").locator("..");
+  await expect(page.getByRole("link", { name: /Aether Keep/i }).first()).toBeVisible();
+  await expect(relatedSection.getByText("Hidden Notes")).toHaveCount(0);
+  await expectNoConsoleErrors(errors);
+});
+
 test("shows GM-only warning banner when gmOnly attribute is present", async ({ page }) => {
   const errors = attachConsoleErrorCollector(page);
   await installPortalApiMocks(page, {

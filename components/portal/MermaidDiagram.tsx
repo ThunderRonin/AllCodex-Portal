@@ -15,6 +15,11 @@ interface MermaidDiagramProps {
 let mermaidInstance: typeof import("mermaid") | null = null;
 let initPromise: Promise<void> | null = null;
 
+/**
+ * Ensures Mermaid is imported once, initialized with the project's theme, flowchart, and security configuration, and cached for reuse.
+ *
+ * @returns The initialized Mermaid module instance
+ */
 async function ensureMermaid() {
   if (mermaidInstance) return mermaidInstance;
   if (!initPromise) {
@@ -46,7 +51,7 @@ async function ensureMermaid() {
           nodeSpacing: 50,
           rankSpacing: 60,
         },
-        securityLevel: "loose",
+        securityLevel: "antiscript",
       });
       mermaidInstance = m;
     })();

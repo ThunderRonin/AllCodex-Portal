@@ -69,6 +69,38 @@ type MentionSuggestion = {
   loreType: string;
 };
 
+type BacklinkEntry = {
+  noteId: string;
+  title: string;
+  loreType: string | null;
+};
+
+/**
+ * Determines whether a note contains a "lore" or "loreType" label attribute.
+ *
+ * @param note - The note record to inspect; may be `undefined`.
+ * @returns `true` if the note has at least one label attribute named `lore` or `loreType`, `false` otherwise.
+ */
+function isLoreNoteRecord(note: NoteRecord | undefined): boolean {
+  return (
+    note?.attributes.some(
+      (attribute) =>
+        attribute.type === "label" &&
+        (attribute.name === "lore" || attribute.name === "loreType"),
+    ) ?? false
+  );
+}
+
+/**
+ * Normalize image source URLs in HTML to a canonical `/api/images/{id}/image` form.
+ *
+ * Scans `html` for several common portal image URL patterns (including legacy or relative
+ * `/api/images/...` paths and `/api/lore/{id}/image`) and rewrites them to use the
+ * absolute `/api/images/{id}/image` form.
+ *
+ * @param html - HTML content containing image `src` attributes
+ * @returns The input HTML with image `src` values rewritten to the canonical paths
+ */
 function normalizePortalImageHtml(html: string) {
   return html
     .replace(/src=["'][^"']*\/api\/lore\/([a-zA-Z0-9_]+)\/image["']/gi, 'src="/api/images/$1/image"')
@@ -107,6 +139,7 @@ export type PortalMockOptions = {
   gaps?: GapsResponse;
   consistency?: ConsistencyResponse;
   mentionSuggestions?: MentionSuggestion[];
+  backlinks?: Record<string, BacklinkEntry[]>;
   autolinkMatches?: AutolinkMatch[];
   breadcrumbs?: Record<string, Array<{ noteId: string; title: string }>>;
   searchResults?: SearchResult[];
@@ -187,6 +220,19 @@ export function buildStatblock(overrides: Partial<NoteRecord> & Pick<NoteRecord,
   };
 }
 
+/**
+ * Installs a comprehensive set of Playwright route mocks that emulate the Portal backend API for tests.
+ *
+ * Registers route handlers for configuration, sharing, notes (CRUD, content, preview, images, attributes, backlinks, searches),
+ * AI endpoints (brain-dump SSE and JSON, relationships, gaps, consistency), imports, integrations, auth, timeline, quests, statblocks,
+ * and other test helpers. Handlers are seeded with reasonable defaults which can be overridden via `options`.
+ *
+ * @param page - Playwright Page instance on which mock routes will be registered.
+ * @param options - Optional overrides for the mocked datasets and behaviors (e.g., notes, searchResults, brainDump, backlinks, etc.).
+ * @returns An in-memory test API with:
+ *   - `getNote(noteId)` — returns the mocked `NoteRecord` for `noteId` if present.
+ *   - `upsertNote(note)` — stores or updates a `NoteRecord` in the mock store and updates ordering.
+ */
 export async function installPortalApiMocks(page: Page, options: PortalMockOptions = {}) {
   const notes = new Map<string, NoteRecord>();
   const orderedNoteIds: string[] = [];
@@ -211,6 +257,7 @@ export async function installPortalApiMocks(page: Page, options: PortalMockOptio
       },
     ],
   };
+  const backlinks = options.backlinks ?? {};
   const gaps = options.gaps ?? {
     body: {
       gaps: [
@@ -428,7 +475,13 @@ export async function installPortalApiMocks(page: Page, options: PortalMockOptio
   });
 
   await page.route("**/api/lore/*/backlinks", async (route) => {
-    await fulfillJson(route, []);
+    const noteId = route.request().url().match(/\/api\/lore\/([^/]+)\/backlinks/)?.[1];
+    const rawBacklinks = noteId ? backlinks[noteId] ?? [] : [];
+    const filteredBacklinks = rawBacklinks.filter((entry) => {
+      const backlinkNote = notes.get(entry.noteId);
+      return entry.loreType !== null || isLoreNoteRecord(backlinkNote);
+    });
+    await fulfillJson(route, filteredBacklinks);
   });
 
   await page.route("**/api/lore/*/attributes**", async (route) => {
@@ -687,20 +740,28 @@ export async function installPortalApiMocks(page: Page, options: PortalMockOptio
     await fulfillJson(route, configStatus);
   });
 
-  await page.route("**/api/config/connect", async (route) => {
+  await page.route("**/api/integrations/allcodex/connect", async (route) => {
     await fulfillJson(route, { success: true });
   });
 
-  await page.route("**/api/config/allcodex-login", async (route) => {
-    await fulfillJson(route, { success: true });
+  await page.route("**/api/integrations/allcodex", async (route) => {
+    if (route.request().method() === "DELETE") {
+      await fulfillJson(route, { success: true });
+      return;
+    }
+    await route.fallback();
   });
 
   await page.route("**/api/config/allknower-login", async (route) => {
     await fulfillJson(route, { success: true });
   });
 
-  await page.route("**/api/config/allknower-register", async (route) => {
-    await fulfillJson(route, { success: true });
+  await page.route("**/api/auth/login", async (route) => {
+    await fulfillJson(route, { ok: true });
+  });
+
+  await page.route("**/api/auth/register", async (route) => {
+    await fulfillJson(route, { ok: true });
   });
 
   await page.route("**/api/config/disconnect**", async (route) => {
@@ -744,23 +805,56 @@ export async function installPortalApiMocks(page: Page, options: PortalMockOptio
     });
   });
 
-  // Register history AFTER the general brain-dump handler so it wins in LIFO order
-  await page.route("**/api/brain-dump**", async (route) => {
+  // SSE streaming endpoint — auto mode uses this
+  await page.route("**/api/brain-dump/stream", async (route) => {
+    if (brainDump.status && brainDump.status !== 200) {
+      await fulfillJson(route, brainDump.body, brainDump.status);
+      return;
+    }
     if (brainDump.delayMs) {
       await new Promise((resolve) => setTimeout(resolve, brainDump.delayMs));
     }
+    const resultJson = JSON.stringify(brainDump.body);
+    await fulfillSSE(route, [
+      { event: "status", data: { type: "status", stage: "rag", message: "Searching lore..." } },
+      { event: "status", data: { type: "status", stage: "llm", message: "Analyzing with AI..." } },
+      { event: "token", data: { type: "token", content: resultJson.slice(0, 20) } },
+      { event: "done", data: { type: "done", raw: resultJson, tokensUsed: 100, model: "mock", latencyMs: 150 } },
+    ]);
+  });
 
+  // Non-streaming brain-dump (review/commit modes)
+  await page.route("**/api/brain-dump", async (route) => {
+    const url = route.request().url();
+    if (url.includes("/stream") || url.includes("/history")) {
+      await route.fallback();
+      return;
+    }
+    if (brainDump.delayMs) {
+      await new Promise((resolve) => setTimeout(resolve, brainDump.delayMs));
+    }
     await fulfillJson(route, brainDump.body, brainDump.status ?? 200);
   });
 
   await page.route("**/api/brain-dump/history**", async (route) => {
-    await fulfillJson(route, brainDumpHistory);
+    await fulfillJson(route, { items: brainDumpHistory, hasMore: false });
   });
 
   await page.route("**/api/ai/relationships", async (route) => {
     const method = route.request().method();
     if (method === "PUT") {
-      await fulfillJson(route, { ok: true, applied: 1 });
+      const body = JSON.parse(route.request().postData() || "{}");
+      const relations = body.relations ?? [];
+      await fulfillJson(route, {
+        applied: relations.map((rel: Record<string, string>) => ({
+          sourceNoteId: body.sourceNoteId ?? "unknown",
+          targetNoteId: rel.targetNoteId ?? "unknown",
+          relationshipType: rel.relationshipType ?? "unknown",
+          relationName: rel.relationshipType ?? "unknown",
+        })),
+        skipped: [],
+        failed: [],
+      });
       return;
     }
 
@@ -850,6 +944,13 @@ function findNoteFromUrl(url: string, notes: Map<string, NoteRecord>) {
   return notes.get(segments[loreIndex + 1]);
 }
 
+/**
+ * Fulfill a Playwright route with a JSON response constructed from the provided body and status.
+ *
+ * @param route - The Playwright route to fulfill
+ * @param body - The value to serialize as the JSON response body
+ * @param status - HTTP status code to return (defaults to 200)
+ */
 async function fulfillJson(route: Route, body: unknown, status = 200) {
   await route.fulfill({
     status,
@@ -858,6 +959,38 @@ async function fulfillJson(route: Route, body: unknown, status = 200) {
   });
 }
 
+/**
+ * Formats a single Server-Sent Events (SSE) event line sequence.
+ *
+ * @param event - The SSE event name
+ * @param data - The event payload; will be JSON-stringified
+ * @returns An SSE-formatted string containing an `event:` line and a `data:` line terminated by a blank line
+ */
+function sseEncode(event: string, data: unknown): string {
+  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+}
+
+/**
+ * Fulfills the Playwright route with a Server-Sent Events (SSE) response built from the provided events.
+ *
+ * @param route - The Playwright Route to fulfill
+ * @param events - An array of SSE event objects; each item must have an `event` name and a `data` payload which will be JSON-stringified for the `data:` line
+ */
+async function fulfillSSE(route: Route, events: Array<{ event: string; data: unknown }>) {
+  const body = events.map(e => sseEncode(e.event, e.data)).join("");
+  await route.fulfill({
+    status: 200,
+    contentType: "text/event-stream",
+    body,
+  });
+}
+
+/**
+ * Escape HTML special characters in a string.
+ *
+ * @param value - The input string to escape
+ * @returns The input string with `&`, `<`, `>`, `"` and `'` replaced by their corresponding HTML entities
+ */
 function escapeHtml(value: string) {
   return value
     .replaceAll("&", "&amp;")

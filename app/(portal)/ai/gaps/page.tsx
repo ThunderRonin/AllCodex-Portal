@@ -42,13 +42,20 @@ const SEVERITY_CONFIG = {
   },
 };
 
+/**
+ * Render the Lore Gap Detector page which scans the user's chronicle for narrative gaps and displays detected gaps grouped by severity.
+ *
+ * The component reads scan enablement from the AI tools store, conditionally triggers a server scan via React Query, and presents UI states for scanning (loading skeletons), errors, empty results, and grouped results with counts, descriptions, and suggestions. Scan control allows enabling and re-scanning the chronicle.
+ *
+ * @returns The React element tree for the Lore Gap Detector page.
+ */
 export default function GapsPage() {
   const { gapsEnabled: enabled, setGapsEnabled: setEnabled } = useAIToolsStore();
 
   const { data, isLoading, error, refetch } = useQuery<{ gaps: Gap[] }>({
     queryKey: ["gaps"],
     queryFn: async () => {
-      const r = await fetch("/api/ai/gaps");
+      const r = await fetch("/api/ai/gaps", { method: "POST" });
       if (!r.ok) throw await r.json();
       return r.json();
     },

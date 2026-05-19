@@ -43,7 +43,7 @@ describe('/api/search', () => {
 
     it('uses queryRag for RAG mode', async () => {
       vi.mocked(getAkCreds).mockResolvedValue(mockAkCreds());
-      vi.mocked(queryRag).mockResolvedValue({ results: [{ id: '123' }] });
+      vi.mocked(queryRag).mockResolvedValue([{ noteId: '123', noteTitle: 'Test', content: 'body', score: 0.9 }]);
 
       const req = new MockNextRequest('http://localhost/api/search?mode=rag&q=test') as any;
       const res = await GET(req) as any;

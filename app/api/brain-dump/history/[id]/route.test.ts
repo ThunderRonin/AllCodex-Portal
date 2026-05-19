@@ -26,7 +26,7 @@ describe('/api/brain-dump/history/[id]', () => {
     it('returns history entry', async () => {
       vi.mocked(getEtapiCreds).mockResolvedValue(mockEtapiCreds());
       vi.mocked(getAkCreds).mockResolvedValue(mockAkCreds());
-      vi.mocked(getBrainDumpEntry).mockResolvedValue({ id: '123', content: 'test' });
+      vi.mocked(getBrainDumpEntry).mockResolvedValue({ id: '123', rawText: 'test', summary: null, notesCreated: [], notesUpdated: [], model: 'gpt-4', tokensUsed: null, createdAt: '', entities: null, parsedJson: null });
 
       const req = new MockNextRequest('http://localhost/api/brain-dump/history/123') as any;
       const res = await GET(req, { params: Promise.resolve({ id: '123' }) }) as any;

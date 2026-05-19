@@ -15,6 +15,8 @@ import { Search, Sparkles, Tag, ArrowRight, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense } from "react";
+import { ServiceBanner } from "@/components/portal/ServiceBanner";
+import { fetchJsonOrThrow } from "@/lib/fetch-json";
 
 interface NoteResult {
   noteId: string;
@@ -33,6 +35,16 @@ const TYPE_COLORS: Record<string, string> = {
   manuscript: "border-pink-500/40 text-pink-300",
 };
 
+/**
+ * Render the Chronicle Search UI with mode tabs, a query input, and result listing.
+ *
+ * Reads `q` and `mode` from the URL to initialize state, performs the corresponding
+ * search (semantic "rag" or attribute "etapi"), and displays loading skeletons,
+ * an error banner, paginated results with type and score metadata, or appropriate
+ * empty-query / no-results messages.
+ *
+ * @returns A React element containing the complete search interface and its states.
+ */
 function SearchContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -42,24 +54,23 @@ function SearchContent() {
   const [query, setQuery] = useState(initialQ);
   const [mode, setMode] = useState<"rag" | "etapi">(initialMode);
 
-  const { data, isLoading, refetch } = useQuery<{ results: NoteResult[] } | NoteResult[]>({
+  const { data, isLoading, isError, error, refetch } = useQuery<{ results: NoteResult[] } | NoteResult[]>({
     queryKey: ["search", initialQ, initialMode],
     queryFn: async () => {
       if (mode === "rag") {
-        const res = await fetch("/api/rag", {
+        return fetchJsonOrThrow<{ results: NoteResult[] }>("/api/rag", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ text: query, topK: 20 }),
         });
-        return res.json();
       } else {
-        const res = await fetch(
+        return fetchJsonOrThrow<{ results: NoteResult[] } | NoteResult[]>(
           `/api/search?q=${encodeURIComponent(query)}&mode=etapi`
         );
-        return res.json();
       }
     },
     enabled: !!initialQ.trim(),
+    retry: false,
   });
 
   const results: NoteResult[] = (() => {
@@ -148,7 +159,11 @@ function SearchContent() {
         </div>
       )}
 
-      {!isLoading && !!initialQ && results.length > 0 && (
+      {!isLoading && isError && (
+        <ServiceBanner service={mode === "rag" ? "AllKnower" : "AllCodex"} error={error} />
+      )}
+
+      {!isLoading && !isError && !!initialQ && results.length > 0 && (
         <div className="space-y-2">
           <p
             className="text-xs uppercase tracking-wider text-muted-foreground"
@@ -174,7 +189,7 @@ function SearchContent() {
                     </p>
                     {r.content && (
                       <p className="text-xs text-muted-foreground truncate max-w-xs mt-0.5">
-                        {r.content.replace(/<[^>]+>/g, "").slice(0, 80)}…
+                        {new DOMParser().parseFromString(r.content, "text/html").body.textContent?.slice(0, 80)}…
                       </p>
                     )}
                   </div>
@@ -198,7 +213,7 @@ function SearchContent() {
         </div>
       )}
 
-      {!isLoading && !!initialQ && results.length === 0 && (
+      {!isLoading && !isError && !!initialQ && results.length === 0 && (
         <div className="text-center py-12 text-muted-foreground">
           <Search className="h-10 w-10 mx-auto mb-3 opacity-20" />
           <p className="text-sm">No results found for &ldquo;{query}&rdquo;.</p>

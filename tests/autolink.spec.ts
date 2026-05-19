@@ -231,7 +231,7 @@ test("deselecting a match and clicking Apply skips that term", async ({ page }) 
       document: [],
       tryParseHTMLToBlocks: (html: string) => [{ html }],
       replaceBlocks: (_current: unknown, blocks: unknown) => {
-        (window as Window & { __replaceBlocksCalls?: unknown[][] }).__replaceBlocksCalls?.push(blocks);
+        (window as Window & { __replaceBlocksCalls?: unknown[][] }).__replaceBlocksCalls?.push(blocks as unknown[]);
       },
     };
     window.dispatchEvent(

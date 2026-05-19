@@ -88,4 +88,65 @@ test.describe("Dashboard page", () => {
 
     await expectNoConsoleErrors(errors);
   });
+
+  test("service status reflects configured error and disconnected states", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("console", (msg) => { if (msg.type() === "error") errors.push(msg.text()); });
+
+    await installPortalApiMocks(page, {
+      configStatus: {
+        allcodex: { ok: false, configured: true, url: "http://localhost:8080", error: "HTTP 503" },
+        allknower: { ok: false, configured: false, url: "http://localhost:3001" },
+      },
+    });
+
+    await page.goto("/");
+
+    await expect(page.getByText("Error").first()).toBeVisible();
+    await expect(page.getByText("Disconnected").first()).toBeVisible();
+    await expect(page.getByText(/online/i)).toHaveCount(0);
+
+    await expectNoConsoleErrors(errors);
+  });
+
+  test("AllCodex read failure shows a service banner instead of the empty state", async ({ page }) => {
+    await installPortalApiMocks(page);
+    await page.route("**/api/lore**", async (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname.endsWith("/api/lore")) {
+        await route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "UNREACHABLE", message: "AllCodex is unreachable" }),
+        });
+        return;
+      }
+      await route.fallback();
+    });
+
+    await page.goto("/");
+
+    await expect(page.getByText(/allcodex unavailable/i).first()).toBeVisible();
+    await expect(page.getByText(/no lore entries yet/i)).toHaveCount(0);
+  });
+
+  test("AllKnower read failure shows a service banner instead of a fake RAG count", async ({ page }) => {
+    await installPortalApiMocks(page);
+    await page.route("**/api/rag", async (route) => {
+      if (route.request().method() === "GET") {
+        await route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "UNREACHABLE", message: "AllKnower is unreachable" }),
+        });
+        return;
+      }
+      await route.fallback();
+    });
+
+    await page.goto("/");
+
+    await expect(page.getByText(/allknower unavailable/i).first()).toBeVisible();
+    await expect(page.getByText(/notes in rag index/i)).toHaveCount(0);
+  });
 });

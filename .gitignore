@@ -14,6 +14,9 @@
 /coverage
 /tests/test-results/
 /test-results/
+/.playwright-cli/
+# ephemeral test account credentials — never commit these
+/tests/helpers/.auth/
 
 # next.js
 /.next/
@@ -34,6 +37,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel

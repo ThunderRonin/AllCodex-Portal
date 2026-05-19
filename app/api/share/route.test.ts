@@ -29,9 +29,8 @@ describe('/api/share', () => {
       vi.mocked(getEtapiCreds).mockResolvedValue(mockEtapiCreds());
       vi.mocked(searchNotes).mockResolvedValue([{ noteId: 'share-root', title: 'Shared', attributes: [] } as any]);
 
-      const req = new MockNextRequest('http://localhost/api/share') as any;
-      const res = await GET(req) as any;
-      
+      const res = await GET() as any;
+
       expect(res.status).toBe(200);
       expect(res.body.configured).toBe(true);
       expect(res.body.noteId).toBe('share-root');
@@ -39,9 +38,8 @@ describe('/api/share', () => {
 
     it('returns 503 if not configured', async () => {
       vi.mocked(getEtapiCreds).mockResolvedValue(mockNoCreds());
-      
-      const req = new MockNextRequest('http://localhost/api/share') as any;
-      const res = await GET(req) as any;
+
+      const res = await GET() as any;
       
       expect(res.status).toBe(503);
     });

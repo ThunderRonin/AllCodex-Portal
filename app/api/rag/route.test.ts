@@ -25,20 +25,18 @@ describe('/api/rag', () => {
   describe('GET', () => {
     it('returns status', async () => {
       vi.mocked(getAkCreds).mockResolvedValue(mockAkCreds());
-      vi.mocked(getRagStatus).mockResolvedValue({ enabled: true, totalVectors: 0, model: 'test' });
+      vi.mocked(getRagStatus).mockResolvedValue({ indexedNotes: 0, lastIndexed: null, model: 'test' });
 
-      const req = new MockNextRequest('http://localhost/api/rag') as any;
-      const res = await GET(req) as any;
-      
+      const res = await GET() as any;
+
       expect(res.status).toBe(200);
-      expect(res.body.enabled).toBe(true);
+      expect(res.body.indexedNotes).toBeDefined();
     });
 
     it('returns 503 if not configured', async () => {
       vi.mocked(getAkCreds).mockResolvedValue(mockNoCreds());
-      
-      const req = new MockNextRequest('http://localhost/api/rag') as any;
-      const res = await GET(req) as any;
+
+      const res = await GET() as any;
       
       expect(res.status).toBe(503);
     });
@@ -47,7 +45,7 @@ describe('/api/rag', () => {
   describe('POST', () => {
     it('queries RAG', async () => {
       vi.mocked(getAkCreds).mockResolvedValue(mockAkCreds());
-      vi.mocked(queryRag).mockResolvedValue({ results: [] });
+      vi.mocked(queryRag).mockResolvedValue([]);
 
       const req = new MockNextRequest('http://localhost/api/rag', { method: 'POST', body: { text: 'test', topK: 5 } }) as any;
       const res = await POST(req) as any;

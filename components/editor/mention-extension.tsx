@@ -1,5 +1,6 @@
-import Mention from "@tiptap/extension-mention";
+import Mention, { type MentionOptions } from "@tiptap/extension-mention";
 import type { SuggestionKeyDownProps, SuggestionProps } from "@tiptap/suggestion";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import tippy, { Instance } from "tippy.js";
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { createRoot, Root } from "react-dom/client";
@@ -102,7 +103,7 @@ export const mentionExtension = Mention.configure({
   HTMLAttributes: {
     class: "lore-mention",
   },
-  renderLabel({ options, node }) {
+  renderLabel({ options, node }: { options: MentionOptions; node: ProseMirrorNode }) {
     // When rendered we don't strictly need the @ character if we use CSS to prefix,
     // but default tiptap shows it
     return `${node.attrs.label ?? node.attrs.id}`;

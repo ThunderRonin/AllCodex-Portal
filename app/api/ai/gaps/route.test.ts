@@ -1,7 +1,7 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { MockNextRequest, setupNextServerMock } from '@/app/api/__test-helpers__/mock-next';
 import { mockEtapiCreds, mockAkCreds, mockNoCreds } from '@/app/api/__test-helpers__/mock-creds';
-import { GET } from './route';
+import { GET, POST } from './route';
 
 setupNextServerMock();
 
@@ -28,9 +28,8 @@ describe('/api/ai/gaps', () => {
       vi.mocked(getAkCreds).mockResolvedValue(mockAkCreds());
       vi.mocked(getGaps).mockResolvedValue({ gaps: [] } as any);
 
-      const req = new MockNextRequest('http://localhost/api/ai/gaps') as any;
-      const res = await GET(req) as any;
-      
+      const res = await GET() as any;
+
       expect(res.status).toBe(200);
       expect(res.body.gaps).toBeDefined();
     });
@@ -38,10 +37,31 @@ describe('/api/ai/gaps', () => {
     it('returns 503 if not configured', async () => {
       vi.mocked(getEtapiCreds).mockResolvedValue(mockEtapiCreds());
       vi.mocked(getAkCreds).mockResolvedValue(mockNoCreds());
+
+      const res = await GET() as any;
       
-      const req = new MockNextRequest('http://localhost/api/ai/gaps') as any;
-      const res = await GET(req) as any;
-      
+      expect(res.status).toBe(503);
+    });
+  });
+
+  describe('POST', () => {
+    it('returns identified gaps', async () => {
+      vi.mocked(getEtapiCreds).mockResolvedValue(mockEtapiCreds());
+      vi.mocked(getAkCreds).mockResolvedValue(mockAkCreds());
+      vi.mocked(getGaps).mockResolvedValue({ gaps: [] } as any);
+
+      const res = await POST() as any;
+
+      expect(res.status).toBe(200);
+      expect(res.body.gaps).toBeDefined();
+    });
+
+    it('returns 503 if not configured', async () => {
+      vi.mocked(getEtapiCreds).mockResolvedValue(mockEtapiCreds());
+      vi.mocked(getAkCreds).mockResolvedValue(mockNoCreds());
+
+      const res = await POST() as any;
+
       expect(res.status).toBe(503);
     });
   });

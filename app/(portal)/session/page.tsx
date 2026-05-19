@@ -48,6 +48,13 @@ function EntityPill({ entity }: { entity: CapturedEntity }) {
   );
 }
 
+/**
+ * Render the Session Workspace UI for quick capture, pinned notes, scene notes, statblock lookup, and session recap.
+ *
+ * Manages local UI state (capture text, captured entities, pins, scene notes, statblock selection) and uses react-query to load brain-dump history, perform quick-capture mutations, and run pin/statblock searches.
+ *
+ * @returns The session workspace React element containing three columns: quick capture & pinned notes (left), scene notes (center), and statblock lookup & recap (right).
+ */
 export default function SessionPage() {
   const queryClient = useQueryClient();
   const [captureText, setCaptureText] = useState("");
@@ -60,9 +67,13 @@ export default function SessionPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Load recent brain-dump history for recap
-  const { data: historyEntries } = useQuery<Array<{ id: string; timestamp: string; summary?: string; entityCount: number }>>({
+  const { data: historyEntries } = useQuery<Array<{ id: string; createdAt: string; summary?: string; notesCreated?: string[]; notesUpdated?: string[] }>>({
     queryKey: ["brain-dump-history"],
-    queryFn: () => fetch("/api/brain-dump/history").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/brain-dump/history");
+      const data = await r.json();
+      return data.items ?? (Array.isArray(data) ? data : []);
+    },
     staleTime: 60_000,
   });
 
@@ -76,16 +87,16 @@ export default function SessionPage() {
       }).then((r) => r.json()),
     onSuccess: (data) => {
       const newEntities: CapturedEntity[] = [
-        ...(data.created ?? []).map((e: { noteId: string; title: string; loreType: string }) => ({
+        ...(data.created ?? []).map((e: { noteId: string; title: string; type: string }) => ({
           noteId: e.noteId,
           title: e.title,
-          type: e.loreType ?? "note",
+          type: e.type ?? "note",
           wasUpdated: false,
         })),
-        ...(data.updated ?? []).map((e: { noteId: string; title: string; loreType: string }) => ({
+        ...(data.updated ?? []).map((e: { noteId: string; title: string; type: string }) => ({
           noteId: e.noteId,
           title: e.title,
-          type: e.loreType ?? "note",
+          type: e.type ?? "note",
           wasUpdated: true,
         })),
       ];
@@ -341,7 +352,7 @@ export default function SessionPage() {
                     <Card key={entry.id} className="border-border/40 bg-muted/20">
                       <CardHeader className="px-3 py-2 pb-1">
                         <CardTitle className="text-xs font-medium text-muted-foreground">
-                          {new Date(entry.timestamp).toLocaleTimeString(undefined, {
+                          {new Date(entry.createdAt).toLocaleTimeString(undefined, {
                             hour: "2-digit",
                             minute: "2-digit",
                           })}
@@ -352,7 +363,7 @@ export default function SessionPage() {
                           <p className="text-xs leading-relaxed">{entry.summary}</p>
                         ) : (
                           <p className="text-xs text-muted-foreground/60 italic">
-                            {entry.entityCount} entr{entry.entityCount === 1 ? "y" : "ies"} captured
+                            {(entry.notesCreated?.length ?? 0) + (entry.notesUpdated?.length ?? 0)} entr{((entry.notesCreated?.length ?? 0) + (entry.notesUpdated?.length ?? 0)) === 1 ? "y" : "ies"} captured
                           </p>
                         )}
                         <a

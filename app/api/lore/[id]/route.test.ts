@@ -12,13 +12,14 @@ vi.mock('@/lib/get-creds', () => ({
 vi.mock('@/lib/etapi-server', () => ({
   getNote: vi.fn(),
   getPortraitImageNoteId: vi.fn(),
+  getThemeSongUrl: vi.fn(),
   patchNote: vi.fn(),
   deleteNote: vi.fn(),
   resolveNoteRelations: vi.fn(),
 }));
 
 import { getEtapiCreds } from '@/lib/get-creds';
-import { getNote, patchNote, deleteNote, resolveNoteRelations, getPortraitImageNoteId } from '@/lib/etapi-server';
+import { getNote, patchNote, deleteNote, resolveNoteRelations, getPortraitImageNoteId, getThemeSongUrl } from '@/lib/etapi-server';
 
 describe('/api/lore/[id]', () => {
   beforeEach(() => {
@@ -31,6 +32,7 @@ describe('/api/lore/[id]', () => {
       vi.mocked(getNote).mockResolvedValue({ noteId: '123', title: 'test' } as any);
       vi.mocked(resolveNoteRelations).mockResolvedValue([]);
       vi.mocked(getPortraitImageNoteId).mockReturnValue('img-123');
+      vi.mocked(getThemeSongUrl).mockReturnValue('https://open.spotify.com/track/abc123');
 
       const req = new MockNextRequest('http://localhost/api/lore/123') as any;
       const params = Promise.resolve({ id: '123' });
@@ -39,6 +41,7 @@ describe('/api/lore/[id]', () => {
       expect(res.status).toBe(200);
       expect(res.body.noteId).toBe('123');
       expect(res.body.portraitImageNoteId).toBe('img-123');
+      expect(res.body.themeSongUrl).toBe('https://open.spotify.com/track/abc123');
       expect(getNote).toHaveBeenCalledWith(mockEtapiCreds(), '123');
     });
 

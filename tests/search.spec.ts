@@ -78,3 +78,23 @@ test("URL updates with q param after search submit", async ({ page }) => {
   await expect(page).toHaveURL(/[?&]q=Aether/);
   await expectNoConsoleErrors(errors);
 });
+
+test("RAG 503 shows the AllKnower service banner instead of the no-results state", async ({ page }) => {
+  await installPortalApiMocks(page);
+  await page.route("**/api/rag", async (route) => {
+    if (route.request().method() === "POST") {
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "UNREACHABLE", message: "AllKnower is unreachable" }),
+      });
+      return;
+    }
+    await route.fallback();
+  });
+
+  await page.goto("/search?q=Aria");
+
+  await expect(page.getByText(/allknower unavailable/i)).toBeVisible();
+  await expect(page.getByText(/no results found/i)).toHaveCount(0);
+});

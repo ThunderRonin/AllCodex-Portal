@@ -26,13 +26,13 @@ describe('/api/brain-dump/commit', () => {
     it('returns commit result', async () => {
       vi.mocked(getEtapiCreds).mockResolvedValue(mockEtapiCreds());
       vi.mocked(getAkCreds).mockResolvedValue(mockAkCreds());
-      vi.mocked(commitBrainDump).mockResolvedValue({ status: 'ok' });
+      vi.mocked(commitBrainDump).mockResolvedValue({ summary: 'ok', created: [], updated: [], skipped: [] });
 
       const req = new MockNextRequest('http://localhost/api/brain-dump/commit', { method: 'POST', body: { rawText: 'text', approvedEntities: [] } }) as any;
       const res = await POST(req) as any;
       
       expect(res.status).toBe(200);
-      expect(res.body.status).toBe('ok');
+      expect(res.body.summary).toBe('ok');
     });
 
     it('returns 503 if not configured', async () => {

@@ -2,7 +2,16 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/portal/AppSidebar";
 import { Separator } from "@/components/ui/separator";
 import { Scroll } from "lucide-react";
+import { ThemeToggle } from "@/components/portal/ThemeToggle";
+import { CopilotProvider } from "@/components/portal/CopilotProvider";
+import { CommandPalette } from "@/components/portal/CommandPalette";
 
+/**
+ * Layout wrapper that provides sidebar context and renders the app sidebar, a header with controls, and a scrollable main content area.
+ *
+ * @param children - Content to render inside the layout's main scrollable area; `CommandPalette` is mounted after this content.
+ * @returns A React element composing `SidebarProvider` with `AppSidebar`, a header (including `SidebarTrigger`, branding, and `ThemeToggle`), and a main container that wraps `children` with `CopilotProvider`.
+ */
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
@@ -20,8 +29,16 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
               All Reach Chronicle
             </span>
           </div>
+          <div className="ml-auto">
+            <ThemeToggle />
+          </div>
         </header>
-        <main className="flex-1 overflow-auto p-6">{children}</main>
+        <div className="flex-1 overflow-auto p-6">
+          <CopilotProvider>
+            {children}
+            <CommandPalette />
+          </CopilotProvider>
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );

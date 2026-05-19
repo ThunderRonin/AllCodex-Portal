@@ -15,7 +15,7 @@
  * The threshold is 2 % (maxDiffPixelRatio: 0.02) — minor font-rendering
  * differences across platforms are tolerated.
  */
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { buildNote, installPortalApiMocks } from "./helpers/mock-api";
 import { attachConsoleErrorCollector } from "./helpers/test-utils";
 
@@ -51,7 +51,7 @@ const LORE_NOTES = [
 ];
 
 /** Inject a style tag that disables all CSS animations and transitions. */
-async function freezeAnimations(page: Parameters<typeof test>[1]) {
+async function freezeAnimations(page: Page) {
   await page.addStyleTag({
     content: `
       *, *::before, *::after {

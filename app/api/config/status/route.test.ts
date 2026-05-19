@@ -10,10 +10,6 @@ vi.mock('@/lib/get-creds', () => ({
   getAkCreds: vi.fn(),
 }));
 
-vi.mock('@/lib/config-probe', () => ({
-  probeAllCodex: vi.fn(),
-  probeAllKnower: vi.fn(),
-}));
 import { getEtapiCreds, getAkCreds } from '@/lib/get-creds';
 describe('/api/config/status', () => {
   beforeEach(() => {
@@ -29,7 +25,8 @@ describe('/api/config/status', () => {
         if (url.includes('etapi')) {
           return Promise.resolve({ ok: true, json: async () => ({ appVersion: '0.62.1' }) });
         }
-        return Promise.resolve({ ok: true });
+        // allknower get-session — must return { session, user } for probeAllKnower to succeed
+        return Promise.resolve({ ok: true, json: async () => ({ session: { id: 'session-id' }, user: {} }) });
       }) as any;
 
       const req = new MockNextRequest('http://localhost/api/config/status') as any;

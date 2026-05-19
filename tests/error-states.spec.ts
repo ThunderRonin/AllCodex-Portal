@@ -35,6 +35,27 @@ test("lore list 500 error shows an error state in the lore browser", async ({ pa
   expect(text).not.toContain("unhandled");
 });
 
+test("lore list 503 error shows the AllCodex service banner instead of the empty state", async ({ page }) => {
+  await installPortalApiMocks(page, { notes: [] });
+  await page.route("**/api/lore**", async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname.endsWith("/api/lore")) {
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "UNREACHABLE", message: "AllCodex is unreachable" }),
+      });
+      return;
+    }
+    await route.fallback();
+  });
+
+  await page.goto("/lore");
+
+  await expect(page.getByText(/allcodex unavailable/i)).toBeVisible();
+  await expect(page.getByText(/the chronicle is empty/i)).toHaveCount(0);
+});
+
 test("AllKnower unavailable on brain dump shows error message", async ({ page }) => {
   await installPortalApiMocks(page, {
     brainDump: {

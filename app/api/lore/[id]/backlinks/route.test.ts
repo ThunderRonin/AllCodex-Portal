@@ -24,7 +24,7 @@ describe('/api/lore/[id]/backlinks', () => {
   describe('GET', () => {
     it('returns backlinks', async () => {
       vi.mocked(getEtapiCreds).mockResolvedValue(mockEtapiCreds());
-      vi.mocked(searchBacklinks).mockResolvedValue([{ noteId: '123', title: 'test', loreType: null }]);
+      vi.mocked(searchBacklinks).mockResolvedValue([{ noteId: '123', title: 'test', loreType: 'character' }]);
 
       const req = new MockNextRequest('http://localhost/api/lore/123/backlinks') as any;
       const res = await GET(req, { params: Promise.resolve({ id: '123' }) }) as any;

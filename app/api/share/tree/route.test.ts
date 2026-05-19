@@ -33,18 +33,16 @@ describe('/api/share/tree', () => {
         attributes: []
       } as any);
 
-      const req = new MockNextRequest('http://localhost/api/share/tree') as any;
-      const res = await GET(req) as any;
-      
+      const res = await GET() as any;
+
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body)).toBe(true);
     });
 
     it('returns 503 if not configured', async () => {
       vi.mocked(getEtapiCreds).mockResolvedValue(mockNoCreds());
-      
-      const req = new MockNextRequest('http://localhost/api/share/tree') as any;
-      const res = await GET(req) as any;
+
+      const res = await GET() as any;
       
       expect(res.status).toBe(503);
     });

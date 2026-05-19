@@ -53,6 +53,27 @@ interface RelationshipsResponse {
   suggestions: Suggestion[];
 }
 
+interface ApplyRelationshipsResult {
+  applied: Array<{
+    sourceNoteId: string;
+    targetNoteId: string;
+    relationshipType: string;
+    relationName: string;
+  }>;
+  skipped: Array<{
+    sourceNoteId: string;
+    targetNoteId: string;
+    relationshipType: string;
+    reason: string;
+  }>;
+  failed: Array<{
+    sourceNoteId: string;
+    targetNoteId: string;
+    relationshipType: string;
+    error: string;
+  }>;
+}
+
 interface Edge {
   targetId: string;
   targetTitle: string;
@@ -60,9 +81,19 @@ interface Edge {
   source: "existing" | "ai";
 }
 
-// ── Mermaid DSL builder ───────────────────────────────────────────────────────
+/**
+ * Sanitizes a node label for Mermaid diagrams.
+ *
+ * Returns `"Unknown"` for falsy input, escapes characters that could break Mermaid labels
+ * (quotes, angle brackets, brackets, parentheses, braces, pipes, backticks, backslashes, semicolons),
+ * and replaces newlines/carriage returns with spaces.
+ *
+ * @param text - The raw label text to sanitize; may be `undefined`
+ * @returns The sanitized label string suitable for use in Mermaid node labels (`"Unknown"` if `text` is falsy)
+ */
 
-function sanitizeLabel(text: string): string {
+function sanitizeLabel(text: string | undefined): string {
+  if (!text) return "Unknown";
   return text
     .replace(/"/g, "&quot;")
     .replace(/</g, "&lt;")
@@ -73,9 +104,74 @@ function sanitizeLabel(text: string): string {
     .replace(/\)/g, "&#41;")
     .replace(/\{/g, "&#123;")
     .replace(/}/g, "&#125;")
-    .replace(/\|/g, "&#124;");
+    .replace(/\|/g, "&#124;")
+    .replace(/`/g, "&#96;")
+    .replace(/\\/g, "&#92;")
+    .replace(/;/g, "&#59;")
+    .replace(/[\n\r]/g, " ");
 }
 
+const RELATION_NAME_TO_CANONICAL: Record<string, string> = {
+  relAlly: "ally",
+  relEnemy: "enemy",
+  relRival: "rival",
+  relFamily: "family",
+  relMemberOf: "member_of",
+  relLeaderOf: "leader_of",
+  relServes: "serves",
+  relLocatedIn: "located_in",
+  relOriginatesFrom: "originates_from",
+  relParticipatedIn: "participated_in",
+  relCaused: "caused",
+  relCreated: "created",
+  relOwns: "owns",
+  relWields: "wields",
+  relWorships: "worships",
+  relInhabits: "inhabits",
+  relRelatedTo: "related_to",
+  relOther: "related_to",
+};
+
+/**
+ * Map a UI or AI relationship identifier to its canonical relationship type.
+ *
+ * @param type - The relationship name or identifier produced by the UI or AI
+ * @returns The canonical relationship type for `type` if a mapping exists, otherwise the original `type`
+ */
+function normalizeRelationshipType(type: string): string {
+  return RELATION_NAME_TO_CANONICAL[type] ?? type;
+}
+
+/**
+ * Produce a display-ready label for a relationship type by converting the input to its canonical form and replacing underscores with spaces.
+ *
+ * @param type - Raw relationship type or UI name to format
+ * @returns The formatted relationship label with words separated by spaces
+ */
+function formatRelationshipLabel(type: string): string {
+  return normalizeRelationshipType(type).replace(/_/g, " ");
+}
+
+/**
+ * Create a stable key for a suggestion composed of the target note ID and the normalized relationship type.
+ *
+ * @param suggestion - Object containing `targetNoteId` and `relationshipType`; only these fields are used to form the key.
+ * @returns A string in the form `targetNoteId::normalizedRelationshipType`, where the relationship type has been normalized for canonical comparison.
+ */
+function suggestionKey(suggestion: Pick<Suggestion, "targetNoteId" | "relationshipType">): string {
+  return `${suggestion.targetNoteId}::${normalizeRelationshipType(suggestion.relationshipType)}`;
+}
+
+/**
+ * Build a Mermaid `graph LR` DSL describing the center node and given relationship edges.
+ *
+ * Produces a Mermaid diagram that styles the center node, renders one node per unique (targetId, normalized relationship type) edge, draws solid arrows for existing relations and dashed arrows for AI suggestions (including relationship labels), applies per-edge colors, and adds click handlers to navigate to each target's lore page.
+ *
+ * @param centerTitle - Label text for the center node (sanitized for Mermaid)
+ * @param centerId - Identifier for the center node (used as the logical source entry id)
+ * @param edges - Array of edges to render; each edge should include `source` ("existing" | "ai"), `targetId`, `targetTitle`, and `type` (relationship type)
+ * @returns A Mermaid `graph LR` DSL string describing the nodes, links, styles, and click handlers; returns an empty string when `edges` is empty.
+ */
 function buildMermaidDSL(
   centerTitle: string,
   centerId: string,
@@ -89,12 +185,14 @@ function buildMermaidDSL(
   lines.push(`  center["${sanitizeLabel(centerTitle)}"]`);
   lines.push(`  style center fill:#6b4c2a,stroke:#d4a843,stroke-width:2px,color:#e8dcc8`);
 
-  // Deduplicate edges by targetId (prefer existing over AI)
+  // Deduplicate only exact semantic duplicates; multiple relationship types to
+  // the same target are distinct.
   const seen = new Map<string, Edge>();
   for (const edge of edges) {
-    const existing = seen.get(edge.targetId);
+    const key = `${edge.targetId}::${normalizeRelationshipType(edge.type)}`;
+    const existing = seen.get(key);
     if (!existing || (edge.source === "existing" && existing.source === "ai")) {
-      seen.set(edge.targetId, edge);
+      seen.set(key, edge);
     }
   }
 
@@ -104,7 +202,7 @@ function buildMermaidDSL(
   uniqueEdges.forEach((edge, i) => {
     const nodeKey = `n${i}`;
     const label = sanitizeLabel(edge.targetTitle);
-    const typeLabel = edge.type.replace(/_/g, " ");
+    const typeLabel = formatRelationshipLabel(edge.type);
     const isDashed = edge.source === "ai";
 
     lines.push(`  ${nodeKey}["${label}"]`);
@@ -123,7 +221,7 @@ function buildMermaidDSL(
     }
 
     // Track edge color
-    const color = EDGE_COLORS[edge.type] ?? EDGE_COLORS.related_to;
+    const color = EDGE_COLORS[normalizeRelationshipType(edge.type)] ?? EDGE_COLORS.related_to;
     edgeStyleIndices.push({ idx: i, color });
 
     // Click handler → navigate to lore entry
@@ -147,9 +245,17 @@ interface RelationshipGraphProps {
   noteTitle: string;
 }
 
+/**
+ * Render a relationship map for a note, showing existing relations and AI-generated suggestions with controls to apply suggestions.
+ *
+ * @param noteId - The note identifier used as the graph center id and for API requests
+ * @param noteTitle - The title shown as the graph center node label
+ * @returns A React element containing the relationship diagram, suggestion list, and Apply controls
+ */
 export function RelationshipGraph({ noteId, noteTitle }: RelationshipGraphProps) {
   const [expanded, setExpanded] = useState(false);
   const [applied, setApplied] = useState<Set<string>>(new Set());
+  const [failures, setFailures] = useState<Record<string, string>>({});
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -188,12 +294,36 @@ export function RelationshipGraph({ noteId, noteTitle }: RelationshipGraphProps)
         }),
       });
       if (!r.ok) throw new Error("Failed to apply relation");
-      return r.json();
+      return r.json() as Promise<ApplyRelationshipsResult>;
     },
-    onSuccess: (_, { key }) => {
-      setApplied((prev) => new Set(prev).add(key));
-      // Invalidate the note query so the sidebar relations section refreshes
+    onSuccess: (result, { key }) => {
+      const appliedKeys = new Set(result.applied.map((rel) => `${rel.targetNoteId}::${rel.relationshipType}`));
+      const skippedKeys = new Set(result.skipped.map((rel) => `${rel.targetNoteId}::${rel.relationshipType}`));
+      const failedByKey = Object.fromEntries(
+        result.failed.map((rel) => [`${rel.targetNoteId}::${rel.relationshipType}`, rel.error]),
+      );
+
+      setApplied((prev) => {
+        const next = new Set(prev);
+        if (appliedKeys.has(key) || skippedKeys.has(key)) next.add(key);
+        return next;
+      });
+      setFailures((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        for (const [failedKey, error] of Object.entries(failedByKey)) {
+          next[failedKey] = error;
+        }
+        return next;
+      });
       queryClient.invalidateQueries({ queryKey: ["note", noteId] });
+      queryClient.invalidateQueries({ queryKey: ["relationships", noteId] });
+    },
+    onError: (error, { key }) => {
+      setFailures((prev) => ({
+        ...prev,
+        [key]: error instanceof Error ? error.message : "Failed to apply relation.",
+      }));
     },
   });
 
@@ -204,7 +334,7 @@ export function RelationshipGraph({ noteId, noteTitle }: RelationshipGraphProps)
       edges.push({
         targetId: rel.targetNoteId,
         targetTitle: rel.targetTitle,
-        type: rel.name,
+        type: normalizeRelationshipType(rel.name),
         source: "existing",
       });
     }
@@ -224,7 +354,10 @@ export function RelationshipGraph({ noteId, noteTitle }: RelationshipGraphProps)
     router.push(`/lore/${nodeId}`);
   };
 
-  const aiSuggestions = data?.suggestions ?? [];
+  const existingKeys = new Set((data?.existing ?? []).map((rel) => `${rel.targetNoteId}::${normalizeRelationshipType(rel.name)}`));
+  const aiSuggestions = (data?.suggestions ?? []).filter(
+    (suggestion) => !applied.has(suggestionKey(suggestion)) && !existingKeys.has(suggestionKey(suggestion))
+  );
 
   return (
     <Card className="border-primary/20 bg-card/60">
@@ -305,9 +438,10 @@ export function RelationshipGraph({ noteId, noteTitle }: RelationshipGraphProps)
                 AI Suggestions
               </p>
               {aiSuggestions.map((s) => {
-                const key = `${s.targetNoteId}::${s.relationshipType}`;
+                const key = suggestionKey(s);
                 const isApplied = applied.has(key);
                 const isApplying = applyingKey?.key === key;
+                const failure = failures[key];
                 return (
                   <div
                     key={key}
@@ -319,7 +453,7 @@ export function RelationshipGraph({ noteId, noteTitle }: RelationshipGraphProps)
                           variant="outline"
                           className="text-[10px] capitalize px-1.5 py-0"
                         >
-                          {s.relationshipType.replace(/_/g, " ")}
+                          {formatRelationshipLabel(s.relationshipType)}
                         </Badge>
                         <Link
                           href={`/lore/${s.targetNoteId}`}
@@ -332,6 +466,11 @@ export function RelationshipGraph({ noteId, noteTitle }: RelationshipGraphProps)
                       <p className="text-[11px] text-muted-foreground leading-relaxed">
                         {s.description}
                       </p>
+                      {failure && (
+                        <p className="text-[11px] text-destructive leading-relaxed">
+                          Failed: {failure}
+                        </p>
+                      )}
                     </div>
                     <Button
                       size="sm"

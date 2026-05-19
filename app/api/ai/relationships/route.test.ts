@@ -51,7 +51,7 @@ describe('/api/ai/relationships', () => {
     it('applies relationships (TODO: usually uses createAttribute directly or ETAPI)', async () => {
       vi.mocked(getEtapiCreds).mockResolvedValue(mockEtapiCreds());
       vi.mocked(getAkCreds).mockResolvedValue(mockAkCreds());
-      vi.mocked(applyRelationships).mockResolvedValue({ status: 'ok' });
+      vi.mocked(applyRelationships).mockResolvedValue({ applied: [], skipped: [], failed: [] });
             
       const req = new MockNextRequest('http://localhost/api/ai/relationships', { method: 'PUT', body: { sourceNoteId: '123', relations: [] } }) as any;
       const res = await PUT(req) as any;

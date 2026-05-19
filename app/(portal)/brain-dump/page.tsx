@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useRef } from "react";
 import { useBrainDumpStore } from "@/lib/stores/brain-dump-store";
+import { useSSEStream } from "@/hooks/use-sse-stream";
 import { LORE_TEMPLATES } from "@/components/editor/TemplatePicker";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -28,15 +29,23 @@ import {
   ArrowRight,
   Trash2,
   ExternalLink,
+  Cpu,
 } from "lucide-react";
 import Link from "next/link";
 import { ServiceBanner } from "@/components/portal/ServiceBanner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type {
   BrainDumpAnyResult,
   BrainDumpResult,
   BrainDumpReviewResult,
   ProposedEntity,
-} from "@/lib/allknower-server";
+} from "@/lib/allknower-schemas";
 
 // ── Entity type helpers ───────────────────────────────────────────────────────
 
@@ -206,22 +215,48 @@ const MODE_TABS = [
   { value: "inbox" as const, label: "Inbox", icon: Inbox, desc: "Queue for later — process when ready" },
 ];
 
-// ── Page ──────────────────────────────────────────────────────────────────────
+/**
+ * Renders the Brain Dump page UI for submitting freeform text to AllKnower, controlling mode/model, streaming or non-stream processing, reviewing proposed entities, inspecting results, running best‑effort consistency checks, managing an inbox, and viewing recent history.
+ *
+ * The component coordinates state from the BrainDump store, server interactions (including SSE streaming for `auto` mode and fetch-based mutations for other modes), simulated processing progress, and query cache invalidation.
+ *
+ * @returns The React element tree for the Brain Dump page, including input controls, processing/review/result panels, contradiction warnings, inbox, and recent history.
+ */
 
 export default function BrainDumpPage() {
   const {
     text, setText,
     dumpMode, setDumpMode,
+    selectedModel, setSelectedModel,
     result, setResult,
     reviewState, setReviewState, toggleReviewApproval,
     inboxItems, addToInbox, removeFromInbox,
     expandedIds, toggleExpanded,
+    streamStatus, setStreamStatus, appendStreamToken, resetStream,
   } = useBrainDumpStore();
   const queryClient = useQueryClient();
+  const { stream, cancel: _cancelStream } = useSSEStream();
+  const [isStreaming, setIsStreaming] = useState(false);
 
   // Scribe's Log — stage simulation
   const [scribeStage, setScribeStage] = useState(0);
   const requestStartRef = useRef<number | null>(null);
+
+  const { data: modelChains } = useQuery<Record<string, { models: string[]; autoMode: boolean }>>({
+    queryKey: ["model-chains"],
+    queryFn: async () => {
+      const r = await fetch("/api/config/models");
+      if (!r.ok) return {};
+      return r.json();
+    },
+    staleTime: 60_000,
+  });
+  const brainDumpModels = modelChains?.["brain-dump"]?.models ?? [];
+  const isAutoMode = modelChains?.["brain-dump"]?.autoMode ?? false;
+
+  if (selectedModel && brainDumpModels.length > 0 && !brainDumpModels.includes(selectedModel)) {
+    setSelectedModel(null);
+  }
 
   const [consistencyResult, setConsistencyResult] = useState<{
     issues: Array<{ type: string; severity: string; description: string; affectedNoteIds: string[] }>;
@@ -234,10 +269,18 @@ export default function BrainDumpPage() {
     queryFn: async () => {
       const r = await fetch("/api/brain-dump/history");
       if (!r.ok) throw await r.json();
-      return r.json();
+      const data = await r.json();
+      return data.items ?? (Array.isArray(data) ? data : []);
     },
   });
 
+  /**
+   * Performs a best-effort contradiction/consistency check for the provided note IDs and updates local consistency state.
+   *
+   * Initiates a network request to evaluate consistency for `noteIds`, sets the loading flag while the check runs, and stores the returned issues if any are found. Failures and empty inputs are silently ignored; the loading flag is cleared when the operation completes.
+   *
+   * @param noteIds - Array of note IDs to include in the consistency check
+   */
   async function runConsistencyCheck(noteIds: string[]) {
     if (noteIds.length === 0) return;
     setConsistencyLoading(true);
@@ -259,13 +302,13 @@ export default function BrainDumpPage() {
   }
 
   const { mutate: runDump, isPending, error: dumpError } = useMutation({
-    mutationFn: async ({ rawText, mode }: { rawText: string; mode: string }) => {
+    mutationFn: async ({ rawText, mode, model }: { rawText: string; mode: string; model?: string }) => {
       requestStartRef.current = Date.now();
       setScribeStage(0);
       const r = await fetch("/api/brain-dump", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rawText, mode }),
+        body: JSON.stringify({ rawText, mode, ...(model && { model }) }),
       });
       if (!r.ok) throw await r.json();
       return r.json() as Promise<BrainDumpAnyResult>;
@@ -316,7 +359,7 @@ export default function BrainDumpPage() {
   });
 
   const charCount = text.length;
-  const isReady = charCount >= 10 && !isPending;
+  const isReady = charCount >= 10 && !isPending && !isStreaming;
 
   // Advance scribe stage based on elapsed time while pending
   useEffect(() => {
@@ -334,12 +377,85 @@ export default function BrainDumpPage() {
     return () => clearInterval(interval);
   }, [isPending, dumpMode]);
 
+  /**
+   * Streams an auto-create brain-dump to the backend, updates UI state with streaming progress, and applies the final parsed result.
+   *
+   * Starts a server-sent-events stream for the given `rawText` (optionally using `model`), sets the page into streaming mode, clears any prior result/review state, and processes stream events to:
+   * - update streaming status messages,
+   * - append incremental token content,
+   * - on completion, parse and normalize the final result, set it as the current result, clear the input text, refresh relevant caches, and run a best-effort consistency check for affected notes,
+   * - on error, record a streaming error status.
+   *
+   * The function ensures streaming state is cleared when the operation finishes or fails.
+   *
+   * @param rawText - The brain-dump text to submit for auto-processing.
+   * @param model - Optional model identifier to request from the backend.
+   */
+  async function handleAutoStream(rawText: string, model?: string) {
+    resetStream();
+    setIsStreaming(true);
+    setResult(null);
+    setReviewState(null);
+
+    try {
+      for await (const event of stream("/api/brain-dump/stream", { rawText, ...(model && { model }) })) {
+        switch (event.event) {
+          case "status":
+            setStreamStatus(event.data as { stage: string; message: string });
+            break;
+          case "token":
+            appendStreamToken((event.data as { content: string }).content);
+            break;
+          case "done": {
+            const doneData = event.data as { raw: string; tokensUsed: number; model: string; latencyMs: number };
+            try {
+              const parsed = JSON.parse(doneData.raw);
+              const normalized = normalizeResult(parsed);
+              setResult(normalized);
+              setText("");
+              void queryClient.invalidateQueries({ queryKey: ["brain-dump-history"] });
+              void queryClient.invalidateQueries({ queryKey: ["lore"] });
+              const newNoteIds = [
+                ...normalized.created.map((e) => e.noteId),
+                ...normalized.updated.map((e) => e.noteId),
+              ];
+              void runConsistencyCheck(newNoteIds);
+            } catch (err) {
+              console.error("[brain-dump] Failed to process done event:", err, "raw data:", doneData);
+            }
+            break;
+          }
+          case "error":
+            setStreamStatus({ stage: "error", message: (event.data as { error: string }).error });
+            break;
+        }
+      }
+    } catch (err) {
+      setStreamStatus({ stage: "error", message: err instanceof Error ? err.message : "Stream failed" });
+    } finally {
+      setIsStreaming(false);
+    }
+  }
+
+  /**
+   * Submit the current brain-dump text according to the active mode.
+   *
+   * If the mode is "inbox", the text is queued in the inbox. If the mode is "auto",
+   * the text is processed via the streaming handler (optionally using the selected model).
+   * For other modes, the non-streaming dump mutation is invoked with the chosen mode
+   * and optional model override.
+   */
   function handleSubmit() {
     if (dumpMode === "inbox") {
       addToInbox(text);
       return;
     }
-    runDump({ rawText: text, mode: dumpMode });
+    const modelOverride = selectedModel ?? undefined;
+    if (dumpMode === "auto") {
+      handleAutoStream(text, modelOverride);
+      return;
+    }
+    runDump({ rawText: text, mode: dumpMode, model: modelOverride });
   }
 
   return (
@@ -374,9 +490,32 @@ export default function BrainDumpPage() {
               </button>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground/70">
-            {MODE_TABS.find((m) => m.value === dumpMode)?.desc}
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground/70">
+              {MODE_TABS.find((m) => m.value === dumpMode)?.desc}
+            </p>
+            {brainDumpModels.length > 1 && !isAutoMode && dumpMode !== "inbox" && (
+              <div className="flex items-center gap-1.5">
+                <Cpu className="h-3 w-3 text-muted-foreground/50" />
+                <Select
+                  value={selectedModel ?? "__default__"}
+                  onValueChange={(v) => setSelectedModel(v === "__default__" ? null : v)}
+                >
+                  <SelectTrigger className="h-7 w-auto min-w-[140px] text-xs rounded-none border-border/40 bg-muted/10">
+                    <SelectValue placeholder="Default model" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-none">
+                    <SelectItem value="__default__" className="text-xs">Default ({brainDumpModels[0]?.split("/").pop()})</SelectItem>
+                    {brainDumpModels.slice(1).map((m) => (
+                      <SelectItem key={m} value={m} className="text-xs">
+                        {m.split("/").pop()}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
 
           <Textarea
             placeholder={`Write anything — story fragments, NPC ideas, place descriptions, plot points…`}
@@ -384,14 +523,14 @@ export default function BrainDumpPage() {
             onChange={(e) => setText(e.target.value)}
             rows={8}
             className="resize-none rounded-none border-border/50 focus-visible:border-primary/60 bg-muted/10 font-[var(--font-crimson)] text-base leading-relaxed"
-            disabled={isPending}
+            disabled={isPending || isStreaming}
           />
           <div className="flex items-center justify-between">
             <span className={`text-xs ${charCount < 10 ? "text-muted-foreground/50" : charCount > 45000 ? "text-destructive" : "text-muted-foreground"}`}>
               {charCount.toLocaleString()} / 50,000 characters
             </span>
-            <Button onClick={handleSubmit} disabled={!isReady} className="gap-2 rounded-none" size="sm">
-              {isPending ? (
+            <Button onClick={handleSubmit} disabled={!isReady || isCommitting} className="gap-2 rounded-none" size="sm">
+              {(isPending || isStreaming) ? (
                 <><RefreshCw className="h-4 w-4 animate-spin" />{dumpMode === "review" ? "Analysing…" : "Processing…"}</>
               ) : dumpMode === "inbox" ? (
                 <><Inbox className="h-4 w-4" />Add to Inbox</>
@@ -405,9 +544,30 @@ export default function BrainDumpPage() {
         </div>
       </div>
 
-      {isPending && <ScribeLog mode={dumpMode} stage={scribeStage} />}
+      {(isPending || isStreaming) && (
+        streamStatus ? (
+          <div className="rounded-none border border-border/30 bg-card/40 p-4 space-y-2.5">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50" style={{ fontFamily: "var(--font-cinzel)" }}>
+              Scribe&apos;s Log
+            </p>
+            <div className="flex items-center gap-3 text-sm">
+              <span className="text-base animate-pulse">{"\u{1F9E0}"}</span>
+              <span className="text-primary font-medium">{streamStatus.message}</span>
+              <span className="ml-auto flex gap-0.5">
+                {[0, 1, 2].map((d) => (
+                  <span key={d} className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: `${d * 150}ms` }} />
+                ))}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <ScribeLog mode={dumpMode} stage={scribeStage} />
+        )
+      )}
 
-      {dumpError && !isPending && <ServiceBanner service="AllKnower" error={dumpError} />}
+      {((dumpError && !isPending) || (streamStatus?.stage === "error" && !isStreaming)) && (
+        <ServiceBanner service="AllKnower" error={dumpError ?? { error: "SERVICE_ERROR", message: streamStatus?.message ?? "Unknown error" }} />
+      )}
 
       {/* Inbox queue */}
       {inboxItems.length > 0 && (
@@ -626,7 +786,7 @@ export default function BrainDumpPage() {
                   className="block rounded-none border-b border-border/20 bg-card/40 p-4 hover:bg-card/70 transition-colors">
                   <div className="flex items-start justify-between gap-3">
                     <p className="text-sm text-foreground/70 whitespace-pre-wrap break-words">
-                      {isExpanded || !needsTruncation ? entry.rawText : entry.rawText.slice(0, 120) + "…"}
+                      {entry.summary || (isExpanded || !needsTruncation ? entry.rawText : entry.rawText.slice(0, 120) + "…")}
                     </p>
                     <div className="flex items-center gap-2 shrink-0">
                       {entry.notesCreated.length > 0 && (

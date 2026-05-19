@@ -187,8 +187,8 @@ test("creating a note with a selected template sends loreType in POST body", asy
   await expect(page).toHaveURL(/\/lore\//);
 
   expect(capturedBody).not.toBeNull();
-  expect((capturedBody as Record<string, unknown>).loreType).toBe("faction");
-  expect((capturedBody as Record<string, unknown>).templateId).toBe("_template_faction");
+  expect((capturedBody as unknown as Record<string, unknown>).loreType).toBe("faction");
+  expect((capturedBody as unknown as Record<string, unknown>).templateId).toBe("_template_faction");
 
   // Confirm the note was stored with the correct loreType
   const createdNote = api.getNote("note-3");

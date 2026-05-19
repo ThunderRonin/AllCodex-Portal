@@ -8,14 +8,16 @@ The portal gives you a clean interface for browsing lore, running brain dumps, a
 
 - **Lore Browser** — browse, create, and edit notes tagged with `#lore` in AllCodex
 - **Brain Dump** — paste raw worldbuilding thoughts and let AllKnower extract and file entities automatically
+- **Article Copilot** — AI writing assistant that opens as a side sheet on any lore page; proposes edits, linked notes, and relation changes within an explicit writable scope; conversation persists across navigation
 - **AI Tools** — consistency checker, lore gap detector, and relationship suggestions powered by AllKnower
 - **Semantic Search** — RAG-based search across your lore using AllKnower's vector index, plus direct ETAPI label queries
+- **Light / Dark theme** — parchment (light) and grimoire (dark) modes toggled per-session
 - **Settings** — connect to AllCodex via ETAPI token or password login, and AllKnower via bearer token or sign-in
 
 ## Requirements
 
 - [AllCodex](https://github.com/ThunderRonin/AllCodex) running and accessible (ETAPI enabled)
-- [AllKnower](https://github.com/ThunderRonin/AllKnower) running for AI features
+- [AllKnower](https://github.com/ThunderRonin/AllKnower) running for AI features (Refer to AllKnower's `.env.example` for current LLM model preferences)
 - Node.js 20+ or Bun
 
 ## Getting Started
@@ -29,16 +31,18 @@ Open [http://localhost:3000](http://localhost:3000) and go to Settings to connec
 
 ### Environment variables (optional)
 
-If you prefer env vars over the Settings UI, create a `.env.local`:
+If you prefer env vars over the Settings UI for local development, create a `.env.local`:
 
 ```env
+ALLKNOWER_URL=http://localhost:3001
+PORTAL_INTERNAL_SECRET=your_secret_here # Required to resolve per-user AllCodex credentials
+
+# Used ONLY for local dev fallback when no user is signed in:
 ALLCODEX_URL=http://localhost:8080
 ALLCODEX_ETAPI_TOKEN=your_token_here
-ALLKNOWER_URL=http://localhost:3001
-ALLKNOWER_BEARER_TOKEN=your_token_here
 ```
 
-Cookie-based settings take priority when present.
+Cookie-based settings take priority when present. The Portal enforces a strict integration boundary: backend tokens never reach the browser. AllCodex ETAPI tokens are generated server-side and passed to AllKnower for encrypted, per-user storage.
 
 ## Project Structure
 

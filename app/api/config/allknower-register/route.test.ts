@@ -19,15 +19,16 @@ describe('/api/config/allknower-register', () => {
     it('handles successful sign-up and sets cookie', async () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({ token: 'new-ak-token' }),
+        headers: { get: (name: string) => name === 'set-auth-token' ? 'new-ak-token' : null },
+        json: async () => ({ user: { id: '1', email: 'u' } }),
       }) as any;
 
       const req = new MockNextRequest('http://localhost/api/config/allknower-register', { method: 'POST', body: { url: 'http://loc:30', email: 'u', name: 'n', password: 'p' } }) as any;
       const res = await POST(req) as any;
-      
+
       expect(res.status).toBe(200);
-      expect(mockCookies.set).toHaveBeenCalledWith('allknower_url', 'http://loc:30', expect.any(Object));
-      expect(mockCookies.set).toHaveBeenCalledWith('allknower_token', 'new-ak-token', expect.any(Object));
+      expect(res.cookies.set).toHaveBeenCalledWith('allknower_url', 'http://loc:30', expect.any(Object));
+      expect(res.cookies.set).toHaveBeenCalledWith('allknower_token', 'new-ak-token', expect.any(Object));
     });
 
     it('returns 400 when missing fields', async () => {

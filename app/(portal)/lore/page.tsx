@@ -10,6 +10,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Search, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { LoreTree } from "@/components/portal/LoreTree";
+import { ServiceBanner } from "@/components/portal/ServiceBanner";
+import { fetchJsonOrThrow } from "@/lib/fetch-json";
+import { CopilotTrigger } from "@/components/portal/CopilotTrigger";
+import { useCopilotStore } from "@/lib/stores/copilot-store";
 
 interface Note {
   noteId: string;
@@ -49,6 +53,15 @@ function getLoreType(note: Note): string {
   );
 }
 
+/**
+ * Render the Lore Browser page content with search, category filtering, and a list of lore entries.
+ *
+ * Synchronizes search and category state with the URL (search is debounced), fetches lore entries,
+ * applies client-side title and category filtering, and renders the sidebar, header, filter input,
+ * a responsive grid of lore cards (with loading, error, and empty states), and a floating Copilot trigger.
+ *
+ * @returns A React element containing the lore browser UI.
+ */
 function LorePageContent() {
   const router = useRouter();
   const pathname = usePathname();
@@ -81,13 +94,10 @@ function LorePageContent() {
 
   const query = "#lore";
 
-  const { data: notes, isLoading } = useQuery<Note[]>({
+  const { data: notes, isLoading, isError, error } = useQuery<Note[]>({
     queryKey: ["lore", query],
-    queryFn: async () => {
-      const r = await fetch(`/api/lore?q=${encodeURIComponent(query)}`);
-      if (!r.ok) throw new Error((await r.json()).error ?? r.statusText);
-      return r.json() as Promise<Note[]>;
-    },
+    queryFn: () => fetchJsonOrThrow<Note[]>(`/api/lore?q=${encodeURIComponent(query)}`),
+    retry: false,
   });
 
   const searched = Array.isArray(notes)
@@ -125,7 +135,7 @@ function LorePageContent() {
             {isLoading ? "Loading entries…" : `${filtered.length} entries`}
           </p>
         </div>
-        <Button asChild size="sm" className="gap-2">
+        <Button asChild size="sm" className="min-h-11 gap-2">
           <Link href="/lore/new">
             <Plus className="h-4 w-4" />
             New Entry
@@ -153,6 +163,8 @@ function LorePageContent() {
             <Skeleton key={i} className="h-28 rounded-lg" />
           ))}
         </div>
+      ) : isError ? (
+        <ServiceBanner service="AllCodex" error={error} />
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <BookOpen className="h-16 w-16 text-muted-foreground/20 mb-4" />
@@ -170,11 +182,13 @@ function LorePageContent() {
           {filtered.map((note) => {
             const loreType = getLoreType(note);
             const colorClass = TYPE_COLORS[loreType] ?? "border-white/20 text-muted-foreground bg-white/5";
+            const modifiedDate = new Date(note.dateModified).toLocaleDateString();
             return (
               <Link
                 key={note.noteId}
                 href={`/lore/${note.noteId}`}
-                className="group block rounded-lg border border-border bg-card/80 p-4 hover:border-primary/50 hover:bg-white/[0.05] transition-all"
+                aria-label={`${note.title}, ${loreType}, modified ${modifiedDate}`}
+                className="group block min-h-11 rounded-lg border border-border bg-card/80 p-4 hover:border-primary/50 hover:bg-white/[0.05] transition-all"
               >
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="text-sm font-semibold leading-tight group-hover:text-primary transition-colors line-clamp-2">
@@ -196,32 +210,18 @@ function LorePageContent() {
                 </div>
                 <div className="grimoire-divider mt-3 mb-2" />
                 <p className="text-xs text-muted-foreground">
-                  Modified {new Date(note.dateModified).toLocaleDateString()}
+                  Modified {modifiedDate}
                 </p>
-                {/* Attributes preview */}
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {note.attributes
-                    ?.filter(
-                      (a) =>
-                        a.type !== "relation" &&
-                        !["template", "loreType"].includes(a.name) &&
-                        a.value
-                    )
-                    .slice(0, 3)
-                    .map((attr) => (
-                      <span
-                        key={attr.name}
-                        className="text-[10px] text-muted-foreground/70 bg-secondary/50 rounded px-1.5 py-0.5"
-                      >
-                        {attr.name}: {attr.value}
-                      </span>
-                    ))}
-                </div>
               </Link>
             );
           })}
         </div>
       )}
+      </div>
+
+      {/* Floating Copilot Trigger */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <CopilotTrigger noteId={useCopilotStore.getState().activeNoteId || filtered[0]?.noteId || ""} />
       </div>
     </div>
   );

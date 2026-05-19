@@ -1,0 +1,24 @@
+language: en-US
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+      - dev
+  path_instructions:
+    - path: "app/api/**"
+      instructions: "API routes — verify auth checks, that server-only imports stay server-side, no ETAPI tokens or AllKnower Bearer tokens leak to browser responses."
+    - path: "lib/**"
+      instructions: "Server-only library — never import from client components. Check that all raw HTML is sanitized via sanitizeLoreHtml() or sanitizePlayerView()."
+    - path: "components/**"
+      instructions: "React components — verify no server-only imports from lib/, check for XSS risks in HTML rendering, ensure Mermaid diagrams use securityLevel antiscript."
+    - path: "hooks/**"
+      instructions: "Client hooks — check SSE parsing correctness, proper cleanup on unmount, AbortController usage."
+chat:
+  auto_reply: true

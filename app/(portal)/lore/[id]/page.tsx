@@ -23,17 +23,21 @@ import {
   ScrollText,
   Shield,
   BookOpen,
+  Map,
 } from "lucide-react";
 import { RelationshipGraph } from "@/components/portal/RelationshipGraph";
+import { MapSection } from "@/components/portal/MapSection";
 import { Breadcrumbs } from "@/components/portal/Breadcrumbs";
 import { TableOfContents } from "@/components/portal/TableOfContents";
 import { NotePreviewLink } from "@/components/portal/NotePreview";
 import { ShareSettings } from "@/components/portal/ShareSettings";
+import { CopilotTrigger } from "@/components/portal/CopilotTrigger";
 import { PreviewToggle, type PreviewMode } from "@/components/portal/PreviewToggle";
 import Link from "next/link";
 import Image from "next/image";
 import { use, useRef, useState } from "react";
 import { sanitizeLoreHtml } from "@/lib/sanitize";
+import { parseThemeSongUrl } from "@/lib/theme-song";
 import { cn } from "@/lib/utils";
 
 interface Attribute {
@@ -58,12 +62,13 @@ interface Note {
   dateModified: string;
   attributes: Attribute[];
   portraitImageNoteId: string | null;
+  themeSongUrl: string | null;
   resolvedRelations: ResolvedRelation[];
 }
 
 const HIDDEN_LABELS = [
   "template", "iconClass", "cssClass", "loreType", "lore", "pageTemplate", "bookTheme",
-  "draft", "gmOnly", "shareAlias", "shareCredentials", "shareRoot",
+  "draft", "gmOnly", "shareAlias", "shareCredentials", "shareRoot", "themeSongUrl",
 ];
 
 const RELATION_LABELS: Record<string, string> = {
@@ -112,6 +117,14 @@ function relationTone(name: string): string {
   return "violet";
 }
 
+/**
+ * Renders a portrait card for a lore note.
+ *
+ * Shows the note's portrait image when `note.portraitImageNoteId` is present; otherwise renders a placeholder using up to the first two initials of the note title and guidance about adding a `portraitImage` relation.
+ *
+ * @param note - The note whose portrait or placeholder should be displayed
+ * @returns A card element containing the portrait image or placeholder and its caption
+ */
 function PortraitCard({ note }: { note: Note }) {
   if (note.portraitImageNoteId) {
     return (
@@ -156,6 +169,69 @@ function PortraitCard({ note }: { note: Note }) {
   );
 }
 
+/**
+ * Render a theme song card for a note when a playable URL is available.
+ *
+ * Displays a small card showing the note title, provider label, an embedded player iframe sized for the provider, and an "Open on provider" link. If the note has no parseable theme song URL, nothing is rendered.
+ *
+ * @param note - The note whose `themeSongUrl` will be parsed and embedded
+ * @returns The rendered card element when a theme song is available, `null` otherwise.
+ */
+function ThemeSongCard({ note }: { note: Note }) {
+  const themeSong = parseThemeSongUrl(note.themeSongUrl);
+
+  if (!themeSong) {
+    return null;
+  }
+
+  const providerLabel = themeSong.provider === "appleMusic" ? "Apple Music" : themeSong.provider;
+
+  return (
+    <Card className="wiki-rail-card overflow-hidden">
+      <CardContent className="p-5 space-y-3">
+        <div className="space-y-1">
+          <p className="wiki-rail-kicker">Theme Song</p>
+          <p className="text-sm font-semibold text-foreground/90">{note.title}</p>
+          <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">{providerLabel}</p>
+        </div>
+
+        <div className="overflow-hidden rounded-2xl border border-border/60 bg-muted/20">
+          <iframe
+            title={`${note.title} theme song`}
+            src={themeSong.embedUrl}
+            width="100%"
+            height={themeSong.height}
+            loading="lazy"
+            referrerPolicy="strict-origin-when-cross-origin"
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            className="block w-full border-0"
+          />
+        </div>
+
+        <a
+          href={themeSong.externalUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex text-xs uppercase tracking-[0.25em] text-accent transition-colors hover:text-accent/80"
+        >
+          Open on provider
+        </a>
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * Renders a two-column detail row showing a label and its corresponding value.
+ *
+ * The left column displays `label` and the right column displays `value`. When
+ * `emphasize` is true, the value receives accent, bold, and uppercase styling.
+ *
+ * @param label - The label text shown in the left column
+ * @param value - The value text shown in the right column
+ * @param emphasize - If true, visually emphasizes the value with accent and uppercase styling
+ * @returns A JSX element representing the labeled detail row
+ */
 function DetailField({ label, value, emphasize = false }: { label: string; value: string; emphasize?: boolean }) {
   return (
     <div className="grid grid-cols-[96px_minmax(0,1fr)] gap-3 border-b border-border/25 py-2 last:border-0">
@@ -194,6 +270,15 @@ function RelatedEntryCard({ entry }: { entry: { noteId: string; title: string; l
   );
 }
 
+/**
+ * Render the lore detail page for a single note.
+ *
+ * Displays the note's metadata, main content (with GM/player preview modes), portrait, theme song embed (when present),
+ * optional geo map view, grouped relations, related entries and backlinks, and a right-hand lore rail with detail fields and actions.
+ *
+ * @param params - A promise resolving to route parameters containing the `id` of the note to display.
+ * @returns The React element tree for the lore detail view for the specified note id.
+ */
 export default function LoreDetailPage({
   params,
 }: {
@@ -238,6 +323,7 @@ export default function LoreDetailPage({
   const loreType = note?.attributes?.find((a) => a.name === "loreType")?.value ?? "lore";
   const isGmOnly = note?.attributes?.some((a) => a.type === "label" && a.name === "gmOnly") ?? false;
   const isDraft = note?.attributes?.some((a) => a.type === "label" && a.name === "draft") ?? false;
+  const isGeoMap = note?.attributes?.some((a) => a.name === "viewType" && a.value === "geoMap") ?? false;
   const groupedRelations = (note?.resolvedRelations ?? []).reduce<Record<string, ResolvedRelation[]>>((groups, relation) => {
     const label = relationLabel(relation.name);
     if (!groups[label]) groups[label] = [];
@@ -339,6 +425,16 @@ export default function LoreDetailPage({
 
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-8">
+          {isGeoMap && (
+            <section className="space-y-3">
+              <div className="wiki-section-header">
+                <Map className="h-4 w-4" />
+                <h2 className="wiki-section-title">Map</h2>
+              </div>
+              <MapSection noteId={id} />
+            </section>
+          )}
+
           <Card className="wiki-panel">
             <CardContent className="p-6 sm:p-8 space-y-8">
               <TableOfContents contentRef={contentRef} />
@@ -391,6 +487,7 @@ export default function LoreDetailPage({
           ) : (
             <>
               <PortraitCard note={note} />
+              <ThemeSongCard note={note} />
 
               <Card className="wiki-rail-card">
                 <CardContent className="p-5 space-y-4">
@@ -436,6 +533,7 @@ export default function LoreDetailPage({
               )}
 
               <div className="grid gap-3">
+                <CopilotTrigger noteId={id} />
                 <Button asChild className="w-full gap-2">
                   <Link href={`/lore/${id}/edit`}>
                     <Edit2 className="h-4 w-4" />
