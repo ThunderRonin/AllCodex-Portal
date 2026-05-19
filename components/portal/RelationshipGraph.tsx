@@ -81,7 +81,16 @@ interface Edge {
   source: "existing" | "ai";
 }
 
-// ── Mermaid DSL builder ───────────────────────────────────────────────────────
+/**
+ * Sanitizes a node label for Mermaid diagrams.
+ *
+ * Returns `"Unknown"` for falsy input, escapes characters that could break Mermaid labels
+ * (quotes, angle brackets, brackets, parentheses, braces, pipes, backticks, backslashes, semicolons),
+ * and replaces newlines/carriage returns with spaces.
+ *
+ * @param text - The raw label text to sanitize; may be `undefined`
+ * @returns The sanitized label string suitable for use in Mermaid node labels (`"Unknown"` if `text` is falsy)
+ */
 
 function sanitizeLabel(text: string | undefined): string {
   if (!text) return "Unknown";
@@ -123,18 +132,46 @@ const RELATION_NAME_TO_CANONICAL: Record<string, string> = {
   relOther: "related_to",
 };
 
+/**
+ * Map a UI or AI relationship identifier to its canonical relationship type.
+ *
+ * @param type - The relationship name or identifier produced by the UI or AI
+ * @returns The canonical relationship type for `type` if a mapping exists, otherwise the original `type`
+ */
 function normalizeRelationshipType(type: string): string {
   return RELATION_NAME_TO_CANONICAL[type] ?? type;
 }
 
+/**
+ * Produce a display-ready label for a relationship type by converting the input to its canonical form and replacing underscores with spaces.
+ *
+ * @param type - Raw relationship type or UI name to format
+ * @returns The formatted relationship label with words separated by spaces
+ */
 function formatRelationshipLabel(type: string): string {
   return normalizeRelationshipType(type).replace(/_/g, " ");
 }
 
+/**
+ * Create a stable key for a suggestion composed of the target note ID and the normalized relationship type.
+ *
+ * @param suggestion - Object containing `targetNoteId` and `relationshipType`; only these fields are used to form the key.
+ * @returns A string in the form `targetNoteId::normalizedRelationshipType`, where the relationship type has been normalized for canonical comparison.
+ */
 function suggestionKey(suggestion: Pick<Suggestion, "targetNoteId" | "relationshipType">): string {
   return `${suggestion.targetNoteId}::${normalizeRelationshipType(suggestion.relationshipType)}`;
 }
 
+/**
+ * Build a Mermaid `graph LR` DSL describing the center node and given relationship edges.
+ *
+ * Produces a Mermaid diagram that styles the center node, renders one node per unique (targetId, normalized relationship type) edge, draws solid arrows for existing relations and dashed arrows for AI suggestions (including relationship labels), applies per-edge colors, and adds click handlers to navigate to each target's lore page.
+ *
+ * @param centerTitle - Label text for the center node (sanitized for Mermaid)
+ * @param centerId - Identifier for the center node (used as the logical source entry id)
+ * @param edges - Array of edges to render; each edge should include `source` ("existing" | "ai"), `targetId`, `targetTitle`, and `type` (relationship type)
+ * @returns A Mermaid `graph LR` DSL string describing the nodes, links, styles, and click handlers; returns an empty string when `edges` is empty.
+ */
 function buildMermaidDSL(
   centerTitle: string,
   centerId: string,
@@ -208,6 +245,13 @@ interface RelationshipGraphProps {
   noteTitle: string;
 }
 
+/**
+ * Render a relationship map for a note, showing existing relations and AI-generated suggestions with controls to apply suggestions.
+ *
+ * @param noteId - The note identifier used as the graph center id and for API requests
+ * @param noteTitle - The title shown as the graph center node label
+ * @returns A React element containing the relationship diagram, suggestion list, and Apply controls
+ */
 export function RelationshipGraph({ noteId, noteTitle }: RelationshipGraphProps) {
   const [expanded, setExpanded] = useState(false);
   const [applied, setApplied] = useState<Set<string>>(new Set());

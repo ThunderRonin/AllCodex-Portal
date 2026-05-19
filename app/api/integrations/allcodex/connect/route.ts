@@ -3,6 +3,15 @@ import { connectAllCodexIntegration } from "@/lib/allknower-server";
 import { getAkCreds } from "@/lib/get-creds";
 import { handleRouteError, notConfigured, ServiceError } from "@/lib/route-error";
 
+/**
+ * Obtain an ETAPI authentication token from an AllCodex core instance.
+ *
+ * @param baseUrl - Base URL of the AllCodex core (no trailing slash required)
+ * @param password - Password to authenticate against the core's ETAPI login endpoint
+ * @returns The `authToken` string returned by the core
+ * @throws ServiceError with code `"UNAUTHORIZED"` and HTTP status `401` if the login request fails (response not OK)
+ * @throws ServiceError with code `"SERVICE_ERROR"` and HTTP status `502` if the response does not contain an `authToken`
+ */
 async function loginToCore(baseUrl: string, password: string): Promise<string> {
   const res = await fetch(`${baseUrl}/etapi/auth/login`, {
     method: "POST",
@@ -27,6 +36,14 @@ async function loginToCore(baseUrl: string, password: string): Promise<string> {
   return data.authToken;
 }
 
+/**
+ * Handles POST requests to connect an AllCodex integration by validating input, obtaining a core token, and creating the integration.
+ *
+ * Expects a JSON body with optional `url`, `baseUrl`, `password`, and `token`. Requires a resolved core URL (from `baseUrl` or `url`) and either `password` or `token`. Uses stored AllKnower credentials; returns a not-configured response if those credentials are missing.
+ *
+ * @param req - The incoming NextRequest whose JSON body may contain `url`, `baseUrl`, `password`, and `token`
+ * @returns On success, a JSON response `{ ok: true, integration: status }` describing the created/updated integration; on invalid input, a 400 JSON response `{ error: "INVALID_REQUEST", message: "url and either password or token are required." }`; other error responses are returned for authentication or service failures.
+ */
 export async function POST(req: NextRequest) {
   try {
     const creds = await getAkCreds();

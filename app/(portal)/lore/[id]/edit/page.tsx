@@ -30,6 +30,14 @@ interface NoteSearchResult {
   loreType: string | null;
 }
 
+/**
+ * Uploads an image file to the portrait image upload endpoint and returns the created image note information.
+ *
+ * @param file - The image file to upload. The file's MIME type must start with `image/`.
+ * @returns An object containing `noteId` for the created image note and `url` for the uploaded image.
+ * @throws Error - If the provided file is not an image (`"Only image uploads are supported"`).
+ * @throws Error - If the upload request fails (`"Failed to upload portrait image"`).
+ */
 async function uploadPortraitImage(file: File) {
   if (!file.type.startsWith("image/")) {
     throw new Error("Only image uploads are supported");
@@ -51,6 +59,16 @@ async function uploadPortraitImage(file: File) {
   return response.json() as Promise<{ noteId: string; url: string }>;
 }
 
+/**
+ * Render the editor UI for modifying a lore entry and its metadata.
+ *
+ * Loads note metadata and content, initializes local editable state, and provides controls to
+ * edit title, HTML content, template-backed attributes, portrait image (search or upload),
+ * theme-song URL, visibility (draft/published), and destructive actions (delete). Saves and
+ * synchronizes changes via the page API and updates client cache and navigation on success.
+ *
+ * @returns The rendered React element for the edit lore entry page.
+ */
 export default function EditLorePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();

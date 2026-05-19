@@ -3,6 +3,15 @@ import { getEtapiCreds } from "@/lib/get-creds";
 import { createNote, createAttribute } from "@/lib/etapi-server";
 import { handleRouteError, notConfigured } from "@/lib/route-error";
 
+/**
+ * Handle a POST upload of an image file and attach it to the parent note identified by the route `id`.
+ *
+ * Expects multipart form-data containing an `image` file (MIME type starting with `image/`) and optional `width` and `height` fields.
+ *
+ * @param req - Incoming request containing multipart form-data with `image` (File), and optional `width` and `height` (strings)
+ * @param params - Promise resolving to an object with `id` (the parent note ID)
+ * @returns On success, a JSON object with `imageNoteId` (the created image note ID), and `width` and `height` as numbers or `null` when not provided
+ */
 export async function POST(
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> },

@@ -48,6 +48,13 @@ function EntityPill({ entity }: { entity: CapturedEntity }) {
   );
 }
 
+/**
+ * Render the Session Workspace UI for quick capture, pinned notes, scene notes, statblock lookup, and session recap.
+ *
+ * Manages local UI state (capture text, captured entities, pins, scene notes, statblock selection) and uses react-query to load brain-dump history, perform quick-capture mutations, and run pin/statblock searches.
+ *
+ * @returns The session workspace React element containing three columns: quick capture & pinned notes (left), scene notes (center), and statblock lookup & recap (right).
+ */
 export default function SessionPage() {
   const queryClient = useQueryClient();
   const [captureText, setCaptureText] = useState("");

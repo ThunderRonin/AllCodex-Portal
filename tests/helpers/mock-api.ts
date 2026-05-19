@@ -75,6 +75,12 @@ type BacklinkEntry = {
   loreType: string | null;
 };
 
+/**
+ * Determines whether a note contains a "lore" or "loreType" label attribute.
+ *
+ * @param note - The note record to inspect; may be `undefined`.
+ * @returns `true` if the note has at least one label attribute named `lore` or `loreType`, `false` otherwise.
+ */
 function isLoreNoteRecord(note: NoteRecord | undefined): boolean {
   return (
     note?.attributes.some(
@@ -85,6 +91,16 @@ function isLoreNoteRecord(note: NoteRecord | undefined): boolean {
   );
 }
 
+/**
+ * Normalize image source URLs in HTML to a canonical `/api/images/{id}/image` form.
+ *
+ * Scans `html` for several common portal image URL patterns (including legacy or relative
+ * `/api/images/...` paths and `/api/lore/{id}/image`) and rewrites them to use the
+ * absolute `/api/images/{id}/image` form.
+ *
+ * @param html - HTML content containing image `src` attributes
+ * @returns The input HTML with image `src` values rewritten to the canonical paths
+ */
 function normalizePortalImageHtml(html: string) {
   return html
     .replace(/src=["'][^"']*\/api\/lore\/([a-zA-Z0-9_]+)\/image["']/gi, 'src="/api/images/$1/image"')
@@ -204,6 +220,19 @@ export function buildStatblock(overrides: Partial<NoteRecord> & Pick<NoteRecord,
   };
 }
 
+/**
+ * Installs a comprehensive set of Playwright route mocks that emulate the Portal backend API for tests.
+ *
+ * Registers route handlers for configuration, sharing, notes (CRUD, content, preview, images, attributes, backlinks, searches),
+ * AI endpoints (brain-dump SSE and JSON, relationships, gaps, consistency), imports, integrations, auth, timeline, quests, statblocks,
+ * and other test helpers. Handlers are seeded with reasonable defaults which can be overridden via `options`.
+ *
+ * @param page - Playwright Page instance on which mock routes will be registered.
+ * @param options - Optional overrides for the mocked datasets and behaviors (e.g., notes, searchResults, brainDump, backlinks, etc.).
+ * @returns An in-memory test API with:
+ *   - `getNote(noteId)` — returns the mocked `NoteRecord` for `noteId` if present.
+ *   - `upsertNote(note)` — stores or updates a `NoteRecord` in the mock store and updates ordering.
+ */
 export async function installPortalApiMocks(page: Page, options: PortalMockOptions = {}) {
   const notes = new Map<string, NoteRecord>();
   const orderedNoteIds: string[] = [];
@@ -915,6 +944,13 @@ function findNoteFromUrl(url: string, notes: Map<string, NoteRecord>) {
   return notes.get(segments[loreIndex + 1]);
 }
 
+/**
+ * Fulfill a Playwright route with a JSON response constructed from the provided body and status.
+ *
+ * @param route - The Playwright route to fulfill
+ * @param body - The value to serialize as the JSON response body
+ * @param status - HTTP status code to return (defaults to 200)
+ */
 async function fulfillJson(route: Route, body: unknown, status = 200) {
   await route.fulfill({
     status,
@@ -923,10 +959,23 @@ async function fulfillJson(route: Route, body: unknown, status = 200) {
   });
 }
 
+/**
+ * Formats a single Server-Sent Events (SSE) event line sequence.
+ *
+ * @param event - The SSE event name
+ * @param data - The event payload; will be JSON-stringified
+ * @returns An SSE-formatted string containing an `event:` line and a `data:` line terminated by a blank line
+ */
 function sseEncode(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
 
+/**
+ * Fulfills the Playwright route with a Server-Sent Events (SSE) response built from the provided events.
+ *
+ * @param route - The Playwright Route to fulfill
+ * @param events - An array of SSE event objects; each item must have an `event` name and a `data` payload which will be JSON-stringified for the `data:` line
+ */
 async function fulfillSSE(route: Route, events: Array<{ event: string; data: unknown }>) {
   const body = events.map(e => sseEncode(e.event, e.data)).join("");
   await route.fulfill({
@@ -936,6 +985,12 @@ async function fulfillSSE(route: Route, events: Array<{ event: string; data: unk
   });
 }
 
+/**
+ * Escape HTML special characters in a string.
+ *
+ * @param value - The input string to escape
+ * @returns The input string with `&`, `<`, `>`, `"` and `'` replaced by their corresponding HTML entities
+ */
 function escapeHtml(value: string) {
   return value
     .replaceAll("&", "&amp;")

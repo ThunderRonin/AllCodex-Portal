@@ -11,6 +11,17 @@ const ChatBodySchema = z.object({
   sessionId: z.string().optional(),
 });
 
+/**
+ * Handle POST requests that initiate and proxy an article copilot server-sent-events (SSE) stream.
+ *
+ * Parses the request body for chat messages and an optional sessionId, validates required credentials,
+ * loads article-specific copilot context using the route `id` parameter and the latest user message,
+ * and proxies an SSE stream to the client with the assembled payload.
+ *
+ * @param req - Incoming Next.js request containing a JSON body matching `ChatBodySchema`
+ * @param params - Route parameters promise resolving to an object with `id` (the article/note identifier)
+ * @returns A Response that streams server-sent events for the article copilot session, or an error/configuration response when credentials or processing fail
+ */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const [etapiCreds, akCreds] = await Promise.all([getEtapiCreds(), getAkCreds()]);

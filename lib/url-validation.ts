@@ -7,6 +7,16 @@ const PRIVATE_RANGES = [
     /^169\.254\./,
 ];
 
+/**
+ * Validate an AllKnower service URL and return its origin.
+ *
+ * @param rawUrl - The input URL string to validate.
+ * @returns The origin (scheme, hostname, and optional port) of the validated URL.
+ * @throws Error("AllKnower URL must use HTTPS in production") if running in production and the protocol is not `https:`.
+ * @throws Error("AllKnower URL must use HTTP or HTTPS") if not running in production and the protocol is neither `http:` nor `https:`.
+ * @throws Error("AllKnower URL must not target private network ranges") if the hostname matches a private/reserved IP range.
+ * @throws Error("AllKnower URL must not target link-local addresses") if the hostname is an IPv6 loopback or link-local address.
+ */
 export function validateAllKnowerUrl(rawUrl: string): string {
     const url = new URL(rawUrl);
 

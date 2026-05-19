@@ -8,10 +8,11 @@ const STORAGE_STATE_PATH = path.resolve(
 );
 
 /**
- * Call at the top of every integration spec.
- * Skips the test when:
- *  - TEST_OPENROUTER_API_KEY is absent (no AI key → no live calls)
- *  - storageState.json doesn't exist (global-setup didn't run / failed)
+ * Skips integration tests when the OpenRouter API key or the browser storage state is missing.
+ *
+ * Call at the top of each integration spec. Tests are skipped if:
+ * - `TEST_OPENROUTER_API_KEY` is not set.
+ * - the `.auth/storage-state.json` file does not exist (global setup did not run).
  */
 export function requireIntegrationEnv() {
   test.skip(

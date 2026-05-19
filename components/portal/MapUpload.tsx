@@ -8,6 +8,17 @@ interface MapUploadProps {
     onUploaded: () => void;
 }
 
+/**
+ * Renders a UI for selecting and uploading a background map image for a note.
+ *
+ * The component reads the selected image's intrinsic width and height, uploads the
+ * file plus its dimensions to `/api/lore/{noteId}/map/upload`, and displays upload
+ * progress and any error message.
+ *
+ * @param noteId - Identifier used to build the upload endpoint for the note
+ * @param onUploaded - Callback invoked after a successful upload
+ * @returns The upload UI element
+ */
 export default function MapUpload({ noteId, onUploaded }: MapUploadProps) {
     const fileRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
@@ -66,6 +77,12 @@ export default function MapUpload({ noteId, onUploaded }: MapUploadProps) {
     );
 }
 
+/**
+ * Obtain the intrinsic width and height of an image File by loading it into an off-screen Image.
+ *
+ * @param file - The image file to measure.
+ * @returns The image's `width` and `height`; if the image cannot be loaded, returns `{ width: 1000, height: 1000 }`.
+ */
 function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
     return new Promise((resolve) => {
         const img = new Image();

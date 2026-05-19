@@ -20,6 +20,20 @@ export interface MapViewerProps {
     onPinClick?: (noteId: string) => void;
 }
 
+/**
+ * Initializes and renders a Leaflet image map with interactive pins inside a container div.
+ *
+ * Renders a div that becomes the Leaflet map container, overlays the provided image using simple CRS bounds,
+ * places markers for each pin with popups showing title, optional lore type, and optional description,
+ * and calls `onPinClick` with the pin's `noteId` when a marker is clicked.
+ *
+ * @param imageUrl - URL of the image to overlay on the map
+ * @param imageWidth - Width of the image in pixels (used to compute map bounds)
+ * @param imageHeight - Height of the image in pixels (used to compute map bounds)
+ * @param pins - Array of pins to render; each pin specifies coordinates (`x`, `y`), `title`, `noteId`, optional `loreType`, and optional `description`
+ * @param onPinClick - Optional callback invoked with the pin's `noteId` when a marker is clicked
+ * @returns A div element that serves as the Leaflet map container
+ */
 function MapViewerInner({
     imageUrl,
     imageWidth,

@@ -3,6 +3,13 @@ import { getNote, getPortraitImageNoteId, getThemeSongUrl, patchNote, deleteNote
 import { getEtapiCreds } from "@/lib/get-creds";
 import { handleRouteError, notConfigured } from "@/lib/route-error";
 
+/**
+ * Retrieve a lore note by id and return its data augmented with resolved relations, portrait image note id, and theme song URL.
+ *
+ * @param _req - Incoming request (unused).
+ * @param params - An object whose `id` promise resolves to the note's id.
+ * @returns The note's properties merged with `resolvedRelations`, `portraitImageNoteId`, and `themeSongUrl`.
+ */
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const creds = await getEtapiCreds();

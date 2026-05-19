@@ -35,6 +35,16 @@ const TYPE_COLORS: Record<string, string> = {
   manuscript: "border-pink-500/40 text-pink-300",
 };
 
+/**
+ * Render the Chronicle Search UI with mode tabs, a query input, and result listing.
+ *
+ * Reads `q` and `mode` from the URL to initialize state, performs the corresponding
+ * search (semantic "rag" or attribute "etapi"), and displays loading skeletons,
+ * an error banner, paginated results with type and score metadata, or appropriate
+ * empty-query / no-results messages.
+ *
+ * @returns A React element containing the complete search interface and its states.
+ */
 function SearchContent() {
   const router = useRouter();
   const searchParams = useSearchParams();

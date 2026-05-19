@@ -215,7 +215,13 @@ const MODE_TABS = [
   { value: "inbox" as const, label: "Inbox", icon: Inbox, desc: "Queue for later — process when ready" },
 ];
 
-// ── Page ──────────────────────────────────────────────────────────────────────
+/**
+ * Renders the Brain Dump page UI for submitting freeform text to AllKnower, controlling mode/model, streaming or non-stream processing, reviewing proposed entities, inspecting results, running best‑effort consistency checks, managing an inbox, and viewing recent history.
+ *
+ * The component coordinates state from the BrainDump store, server interactions (including SSE streaming for `auto` mode and fetch-based mutations for other modes), simulated processing progress, and query cache invalidation.
+ *
+ * @returns The React element tree for the Brain Dump page, including input controls, processing/review/result panels, contradiction warnings, inbox, and recent history.
+ */
 
 export default function BrainDumpPage() {
   const {
@@ -268,6 +274,13 @@ export default function BrainDumpPage() {
     },
   });
 
+  /**
+   * Performs a best-effort contradiction/consistency check for the provided note IDs and updates local consistency state.
+   *
+   * Initiates a network request to evaluate consistency for `noteIds`, sets the loading flag while the check runs, and stores the returned issues if any are found. Failures and empty inputs are silently ignored; the loading flag is cleared when the operation completes.
+   *
+   * @param noteIds - Array of note IDs to include in the consistency check
+   */
   async function runConsistencyCheck(noteIds: string[]) {
     if (noteIds.length === 0) return;
     setConsistencyLoading(true);
@@ -364,6 +377,20 @@ export default function BrainDumpPage() {
     return () => clearInterval(interval);
   }, [isPending, dumpMode]);
 
+  /**
+   * Streams an auto-create brain-dump to the backend, updates UI state with streaming progress, and applies the final parsed result.
+   *
+   * Starts a server-sent-events stream for the given `rawText` (optionally using `model`), sets the page into streaming mode, clears any prior result/review state, and processes stream events to:
+   * - update streaming status messages,
+   * - append incremental token content,
+   * - on completion, parse and normalize the final result, set it as the current result, clear the input text, refresh relevant caches, and run a best-effort consistency check for affected notes,
+   * - on error, record a streaming error status.
+   *
+   * The function ensures streaming state is cleared when the operation finishes or fails.
+   *
+   * @param rawText - The brain-dump text to submit for auto-processing.
+   * @param model - Optional model identifier to request from the backend.
+   */
   async function handleAutoStream(rawText: string, model?: string) {
     resetStream();
     setIsStreaming(true);
@@ -410,6 +437,14 @@ export default function BrainDumpPage() {
     }
   }
 
+  /**
+   * Submit the current brain-dump text according to the active mode.
+   *
+   * If the mode is "inbox", the text is queued in the inbox. If the mode is "auto",
+   * the text is processed via the streaming handler (optionally using the selected model).
+   * For other modes, the non-streaming dump mutation is invoked with the chosen mode
+   * and optional model override.
+   */
   function handleSubmit() {
     if (dumpMode === "inbox") {
       addToInbox(text);

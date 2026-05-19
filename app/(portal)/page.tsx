@@ -44,6 +44,14 @@ interface ConfigStatus {
   allknower: { ok: boolean; configured: boolean; url: string | null; error?: string };
 }
 
+/**
+ * Determine a note's lore type by inspecting its attributes.
+ *
+ * Scans `note.attributes` for an attribute named `"loreType"`, then `"template"`, and returns the first found attribute's `value`.
+ *
+ * @param note - The note whose attributes will be inspected
+ * @returns The `value` of the `loreType` or `template` attribute if present, otherwise `"lore"`
+ */
 function getLoreType(note: Note): string {
   return (
     note.attributes?.find((a) => a.name === "loreType")?.value ??
@@ -52,12 +60,29 @@ function getLoreType(note: Note): string {
   );
 }
 
+/**
+ * Determine a service connection state from its health object and an error flag.
+ *
+ * @param status - Optional health object with `ok` indicating operational status and `configured` indicating whether the service is configured
+ * @param isError - When `true`, force the returned state to `"error"`
+ * @returns One of `"error"`, `"checking"`, `"connected"`, or `"disconnected"`. `"error"` is returned if `isError` is `true`; `"checking"` if `status` is `undefined`; `"connected"` if `status.ok` is `true`; `"error"` if `status.ok` is `false` but `status.configured` is `true`; otherwise `"disconnected"`.
+ */
 function getServiceState(status?: { ok: boolean; configured: boolean }, isError = false) {
   if (isError) return "error" as const;
   if (!status) return "checking" as const;
   return status.ok ? "connected" as const : status.configured ? "error" as const : "disconnected" as const;
 }
 
+/**
+ * Renders a statistic card with an icon, a label, a prominent value, and an optional subtitle.
+ *
+ * @param icon - React component used as the leading icon in the card header
+ * @param label - Short label displayed in the card header
+ * @param value - Primary numeric or text value shown prominently in the card
+ * @param sub - Optional subtitle rendered beneath the main value
+ * @param loading - When true, displays a skeleton placeholder instead of the `value`
+ * @returns A JSX card element presenting the statistic
+ */
 function StatCard({
   icon: Icon,
   label,
@@ -93,6 +118,13 @@ function StatCard({
   );
 }
 
+/**
+ * Render the dashboard page showing overview statistics, recent lore entries, quick actions, and system status.
+ *
+ * Displays totals and recent-item cards derived from configuration, lore, and RAG API data and adapts the UI for loading, error, and empty states.
+ *
+ * @returns The React element for the dashboard layout.
+ */
 export default function DashboardPage() {
   const {
     data: configStatus,

@@ -4,6 +4,17 @@ import { getEtapiCreds } from "@/lib/get-creds";
 import { getMapDimensions, getMapImageNoteId, notesToPins } from "@/lib/map-utils";
 import { handleRouteError, notConfigured } from "@/lib/route-error";
 
+/**
+ * Handle a GET request to produce map data for a lore note.
+ *
+ * Determines an optional map image URL (from a map-image relation or the first image child), extracts map
+ * dimensions from the note (defaults to 1000×1000 when absent), and converts child notes with geolocation
+ * information into `pins`.
+ *
+ * @param _req - The incoming NextRequest (unused).
+ * @param params - A promise resolving to route params; `params.id` is the target note ID.
+ * @returns An object with `imageUrl` (string | null), `width` (number), `height` (number), and `pins` (array of pin objects).
+ */
 export async function GET(
     _req: NextRequest,
     { params }: { params: Promise<{ id: string }> },

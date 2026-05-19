@@ -4,6 +4,15 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
+/**
+ * Renders a centered fallback UI for when a lore entry fails to load.
+ *
+ * Also logs the provided `error` to the console with the tag "[lore detail error]".
+ *
+ * @param error - The error that occurred (may include an optional `digest` field); its `message` is shown in the UI when present.
+ * @param reset - Callback invoked when the user requests a retry (wired to the "Try again" button).
+ * @returns A React element displaying the error message and actions to retry or navigate back to the lore list.
+ */
 export default function LoreDetailError({
   error,
   reset,

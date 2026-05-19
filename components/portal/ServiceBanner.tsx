@@ -10,6 +10,13 @@ interface ServiceBannerProps {
   error: unknown;
 }
 
+/**
+ * Renders a service status banner for "AllCodex" or "AllKnower" showing an icon, a short status label, the error message, and an optional link to settings.
+ *
+ * @param service - The service name to display; either `"AllCodex"` or `"AllKnower"`.
+ * @param error - The error payload to display. Can be any value; the component derives a display message from it and decides whether to show a Settings link when the error indicates the service is not configured or credentials are expired.
+ * @returns A React element containing the styled banner with icon, status text, error message, and an optional Settings link.
+ */
 export function ServiceBanner({ service, error }: ServiceBannerProps) {
   const code = error instanceof Error ? "SERVICE_ERROR" : isRouteErrorPayload(error) ? error.error : "SERVICE_ERROR";
   const message = error instanceof Error ? error.message : isRouteErrorPayload(error) ? error.message : String(error);
