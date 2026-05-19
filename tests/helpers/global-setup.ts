@@ -24,9 +24,9 @@ export const STORAGE_STATE_PATH = path.resolve(
   __dirname,
   ".auth/storage-state.json"
 );
-const TEST_PASSWORD = // NOSONAR — test credential with env override, not a production secret
+const TEST_PASSWORD =
   process.env.PLAYWRIGHT_TEST_PASSWORD ??
-  "allcodex-playwright-test-password";
+  "allcodex-playwright-test-password"; // NOSONAR — test credential with env override, not a production secret
 
 const ALLCODEX_URL = process.env.TEST_ALLCODEX_URL ?? "http://localhost:8080";
 const ALLCODEX_ETAPI_TOKEN = process.env.TEST_ALLCODEX_ETAPI_TOKEN ?? "";
