@@ -25,7 +25,15 @@ export class MockNextRequest {
   }
 }
 
-// Removed manual MockNextResponse class. Let's just create a mock helper.
+/**
+ * Installs a test mock for the `next/server` module that exposes a lightweight `NextResponse` implementation.
+ *
+ * The mocked `NextResponse`:
+ * - Constructor: exposes `status`, `body`, and `headers`.
+ * - `static json(body, init?)`: returns `{ status, body, cookies }` where `cookies` provides `set`, `delete`, and `get` mocks.
+ * - `static redirect(url, statusOrInit?)`: returns an object with `status`, `body` containing the redirect URL, and `headers`.
+ * - `static rewrite(url, init?)`: returns an object with `status`, `body` containing the rewrite URL, and `headers`.
+ */
 export function setupNextServerMock() {
   vi.mock('next/server', () => {
     class NextResponse {

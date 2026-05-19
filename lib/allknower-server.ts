@@ -28,6 +28,13 @@ export interface AkCreds {
   token: string;
 }
 
+/**
+ * Build request headers configured for JSON payloads and optional Bearer authentication.
+ *
+ * @param initHeaders - Existing headers to start from; may be `undefined`.
+ * @param token - Optional bearer token to set as `Authorization: Bearer <token>`.
+ * @returns A `HeadersInit` containing the merged headers, guaranteeing `Content-Type: application/json` if absent and including an `Authorization` header when `token` is provided.
+ */
 function buildJsonHeaders(initHeaders: HeadersInit | undefined, token?: string): HeadersInit {
   const headers = new Headers(initHeaders);
   if (token) headers.set("Authorization", `Bearer ${token}`);
@@ -35,6 +42,17 @@ function buildJsonHeaders(initHeaders: HeadersInit | undefined, token?: string):
   return headers;
 }
 
+/**
+ * Perform an authenticated HTTP request to the AllKnower service and map common failures to ServiceError.
+ *
+ * @param creds - AllKnower credentials containing the base `url` and bearer `token` used for the request
+ * @param path - Request path appended to `creds.url` (should begin with `/` when appropriate)
+ * @param init - Optional RequestInit merged into the fetch call; headers are augmented with JSON content-type and the Authorization bearer token
+ * @returns The successful `Response` returned by the AllKnower service
+ * @throws ServiceError with code `UNREACHABLE` (503) when the host cannot be reached
+ * @throws ServiceError with code `UNAUTHORIZED` (401) when the session is invalid; this also attempts to clear session cookies
+ * @throws ServiceError with code `SERVICE_ERROR` (502) for non-OK HTTP responses, including status and response body
+ */
 async function akFetch(creds: AkCreds, path: string, init: RequestInit = {}): Promise<Response> {
   let res: Response;
   try {
@@ -60,6 +78,15 @@ async function akFetch(creds: AkCreds, path: string, init: RequestInit = {}): Pr
   return res;
 }
 
+/**
+ * Perform an unauthenticated HTTP request to the AllKnower service with JSON headers.
+ *
+ * @param url - The AllKnower base URL to send the request to
+ * @param path - The request path to append to `url`
+ * @param init - Additional fetch options; headers will be merged with JSON headers
+ * @returns The HTTP Response from the request
+ * @throws ServiceError with code `"UNREACHABLE"` and status `503` if the AllKnower service cannot be reached
+ */
 async function akPublicFetch(url: string, path: string, init: RequestInit = {}): Promise<Response> {
   try {
     return await fetch(`${url}${path}`, {
@@ -71,6 +98,16 @@ async function akPublicFetch(url: string, path: string, init: RequestInit = {}):
   }
 }
 
+/**
+ * Sign in to an AllKnower instance with email credentials and return the session token and user.
+ *
+ * @param url - Base AllKnower URL; used as the request origin and to construct the auth endpoint
+ * @param email - Account email address
+ * @param password - Account password
+ * @returns An object with `token` containing the session token and `user` containing the authenticated user object or `null`
+ * @throws ServiceError("UNAUTHORIZED", 401, ...) if the credentials are rejected by the server
+ * @throws ServiceError("SERVICE_ERROR", 502, ...) if the response does not include a session token
+ */
 export async function loginAllKnower(
   url: string,
   email: string,
@@ -94,6 +131,16 @@ export async function loginAllKnower(
   return { token, user: data.user ?? null };
 }
 
+/**
+ * Register a new AllKnower account and obtain its session token and user record.
+ *
+ * @param url - The AllKnower base URL (used as the request origin)
+ * @param email - The email address for the new account
+ * @param password - The password for the new account
+ * @param name - The display name for the new account
+ * @returns An object containing `token` (the session token from the response header) and `user` (the parsed user payload or `null`)
+ * @throws ServiceError when the registration request fails or the response does not include a session token
+ */
 export async function registerAllKnower(
   url: string,
   email: string,
@@ -118,12 +165,20 @@ export async function registerAllKnower(
   return { token, user: data.user ?? null };
 }
 
+/**
+ * Fetches the current AllKnower session and associated user information.
+ *
+ * @returns `{ session: unknown; user: unknown }` — `session` is the session object or `null` if not present, and `user` is the user object or `null` if not present.
+ */
 export async function getAllKnowerSession(creds: AkCreds): Promise<{ session: unknown; user: unknown }> {
   const res = await akFetch(creds, "/api/auth/get-session", { method: "GET" });
   const data = await res.json().catch(() => ({}));
   return { session: data.session ?? null, user: data.user ?? null };
 }
 
+/**
+ * Invalidates the session on the AllKnower server for the provided credentials.
+ */
 export async function logoutAllKnower(creds: AkCreds): Promise<void> {
   await akFetch(creds, "/api/auth/sign-out", { method: "POST", body: JSON.stringify({}) });
 }
@@ -135,6 +190,13 @@ export interface AllCodexIntegrationStatus {
   updatedAt?: string;
 }
 
+/**
+ * Connects an AllCodex integration using the provided base URL and token, and returns the updated integration status.
+ *
+ * @param baseUrl - The AllCodex instance base URL to connect
+ * @param token - The integration token to register with AllCodex
+ * @returns The integration status object containing `connected` and optional `baseUrl`, `tokenLast4`, and `updatedAt`
+ */
 export async function connectAllCodexIntegration(
   creds: AkCreds,
   baseUrl: string,
@@ -147,16 +209,32 @@ export async function connectAllCodexIntegration(
   return res.json();
 }
 
+/**
+ * Fetches the current AllCodex integration status.
+ *
+ * @returns An `AllCodexIntegrationStatus` object containing `connected` (whether integration is active) and optional `baseUrl`, `tokenLast4`, and `updatedAt` fields.
+ */
 export async function getAllCodexIntegrationStatus(creds: AkCreds): Promise<AllCodexIntegrationStatus> {
   const res = await akFetch(creds, "/integrations/allcodex/status");
   return res.json();
 }
 
+/**
+ * Deletes the AllCodex integration for the authenticated account.
+ *
+ * @returns An object with `ok: true` if the deletion succeeded, `ok: false` otherwise.
+ */
 export async function deleteAllCodexIntegration(creds: AkCreds): Promise<{ ok: boolean }> {
   const res = await akFetch(creds, "/integrations/allcodex", { method: "DELETE" });
   return res.json();
 }
 
+/**
+ * Retrieve AllCodex integration credentials for the portal.
+ *
+ * @param portalInternalSecret - Secret sent as `X-Portal-Internal-Secret` header to authenticate the request
+ * @returns The AllCodex credentials: `baseUrl` and `token`
+ */
 export async function resolveAllCodexCredentials(
   creds: AkCreds,
   portalInternalSecret: string,
@@ -255,7 +333,15 @@ export interface RagChunk {
 // ConsistencyIssue, ConsistencyResult, RelationshipSuggestion, GapArea, GapResult
 // are now derived from Zod schemas in allknower-schemas.ts and re-exported from there.
 
-// ── Brain Dump ────────────────────────────────────────────────────────────────
+/**
+ * Run the Brain Dump flow against AllKnower and return the validated result.
+ *
+ * @param rawText - The source text to analyze and convert into entities/summary
+ * @param mode - Processing mode: `"auto"` to apply changes automatically, `"review"` to return proposed entities for review, or `"inbox"` to queue the input
+ * @param model - Optional model identifier to influence processing
+ * @returns A `BrainDumpAnyResult` containing the parsed and schema-validated response from AllKnower
+ * @throws ServiceError with code `SERVICE_ERROR` when the response does not match the expected schema
+ */
 
 export async function runBrainDump(
   creds: AkCreds,
@@ -277,6 +363,14 @@ export async function runBrainDump(
   return parsed.data;
 }
 
+/**
+ * Commits a brain dump by sending approved entities to AllKnower and returning the finalized result.
+ *
+ * @param rawText - The original brain dump text submitted for commit
+ * @param approvedEntities - The list of proposed entities to apply (create or update)
+ * @returns The finalized `BrainDumpResult` containing summary, created/updated entries, skipped items, and optional duplicates
+ * @throws ServiceError with code `SERVICE_ERROR` when AllKnower returns an unexpected response format
+ */
 export async function commitBrainDump(
   creds: AkCreds,
   rawText: string,
@@ -296,6 +390,12 @@ export async function commitBrainDump(
   return parsed.data;
 }
 
+/**
+ * Fetches a page of brain-dump history entries.
+ *
+ * @param cursor - Optional pagination cursor for the page to fetch
+ * @returns An object containing `items` (the history entries), `nextCursor` (cursor for the next page, if present), and `hasMore` (`true` if a next page exists, `false` otherwise)
+ */
 export async function getBrainDumpHistory(
   creds: AkCreds,
   cursor?: string,
@@ -309,12 +409,24 @@ export async function getBrainDumpHistory(
   return { items, nextCursor: data.nextCursor, hasMore: !!data.nextCursor };
 }
 
+/**
+ * Fetches a brain dump history entry by its ID.
+ *
+ * @param id - The history entry identifier (will be URL-encoded)
+ * @returns The requested BrainDumpDetailEntry parsed from the response body
+ */
 export async function getBrainDumpEntry(creds: AkCreds, id: string): Promise<BrainDumpDetailEntry> {
   const res = await akFetch(creds, `/brain-dump/history/${encodeURIComponent(id)}`);
   return res.json();
 }
 
-// ── RAG ───────────────────────────────────────────────────────────────────────
+/**
+ * Query the retrieval-augmented generation (RAG) index for chunks relevant to the provided text.
+ *
+ * @param text - The query text to search against the RAG index
+ * @param topK - Maximum number of top-ranked chunks to return (default: 10)
+ * @returns An array of `RagChunk` objects ranked by relevance; an empty array if no results are found
+ */
 
 export async function queryRag(creds: AkCreds, text: string, topK = 10): Promise<RagChunk[]> {
   const res = await akFetch(creds, "/rag/query", {
@@ -325,6 +437,13 @@ export async function queryRag(creds: AkCreds, text: string, topK = 10): Promise
   return data.results ?? [];
 }
 
+/**
+ * Sends an article-generation request to the Copilot endpoint and returns the validated chat response.
+ *
+ * @param payload - The Copilot request payload to send as the POST body.
+ * @returns The validated Copilot chat response.
+ * @throws ServiceError when the AllKnower response does not match the expected schema.
+ */
 export async function runArticleCopilot(
   creds: AkCreds,
   payload: CopilotRequest,
@@ -343,6 +462,11 @@ export async function runArticleCopilot(
   return parsed.data;
 }
 
+/**
+ * Fetches the Retrieval-Augmented Generation (RAG) index status from the AllKnower server.
+ *
+ * @returns An object containing `indexedNotes` (the number of notes indexed), `lastIndexed` (ISO timestamp of the last indexing run or `null` if never indexed), and `model` (the name of the model used for RAG or `null` if unspecified).
+ */
 export async function getRagStatus(creds: AkCreds): Promise<{ indexedNotes: number; lastIndexed: string | null; model: string | null }> {
   const res = await akFetch(creds, "/rag/status");
   return res.json();
@@ -357,7 +481,13 @@ export async function triggerReindex(creds: AkCreds, noteId?: string): Promise<{
   return res.json();
 }
 
-// ── Intelligence ──────────────────────────────────────────────────────────────
+/**
+ * Perform a consistency check for the specified notes against AllKnower.
+ *
+ * @param noteIds - Optional array of note IDs to limit the check; when omitted the check applies to all notes.
+ * @returns The consistency check result validated against the `ConsistencyResult` schema.
+ * @throws ServiceError with code `SERVICE_ERROR` if the response does not match the expected schema.
+ */
 
 export async function checkConsistency(creds: AkCreds, noteIds?: string[]): Promise<ConsistencyResult> {
   const res = await akFetch(creds, "/consistency/check", {
@@ -374,6 +504,14 @@ export async function checkConsistency(creds: AkCreds, noteIds?: string[]): Prom
   return parsed.data;
 }
 
+/**
+ * Suggests relationships based on input text, optionally scoped to a specific note.
+ *
+ * @param text - The text to analyze for relationship suggestions
+ * @param noteId - Optional note ID to scope suggestions to a specific note
+ * @returns A `RelationshipsResult` containing suggested relationships and related metadata
+ * @throws ServiceError if the request fails or the response does not match the expected schema
+ */
 export async function suggestRelationships(creds: AkCreds, text: string, noteId?: string): Promise<RelationshipsResult> {
   const res = await akFetch(creds, "/suggest/relationships", {
     method: "POST",
@@ -389,12 +527,27 @@ export async function suggestRelationships(creds: AkCreds, text: string, noteId?
   return parsed.data;
 }
 
+/**
+ * Fetches autocomplete suggestions for the given query from AllKnower.
+ *
+ * @param q - The query string to autocomplete
+ * @returns The response's `suggestions` array if present, otherwise an empty array.
+ */
 export async function akFetchAutocomplete(creds: AkCreds, q: string): Promise<any[]> {
   const res = await akFetch(creds, `/suggest/autocomplete?q=${encodeURIComponent(q)}`);
   const data = await res.json();
   return data.suggestions ?? [];
 }
 
+/**
+ * Apply a set of relationships from a source note to one or more target notes.
+ *
+ * @param sourceNoteId - ID of the note from which relationships originate
+ * @param relations - Array of relationship objects; each must include `targetNoteId` and `relationshipType`, and may include `description`
+ * @param bidirectional - If `true`, create relationships in both directions; defaults to `true`
+ * @returns The server-validated result of the apply operation (`ApplyRelationshipsResult`)
+ * @throws ServiceError when the AllKnower response does not match the expected schema
+ */
 export async function applyRelationships(
   creds: AkCreds,
   sourceNoteId: string,
@@ -415,6 +568,12 @@ export async function applyRelationships(
   return parsed.data;
 }
 
+/**
+ * Retrieves gap analysis results from AllKnower.
+ *
+ * @returns The gap analysis result containing identified gap areas and related metadata.
+ * @throws ServiceError with code `"SERVICE_ERROR"` and status `502` if the server response does not match the expected schema.
+ */
 export async function getGaps(creds: AkCreds): Promise<GapResult> {
   const res = await akFetch(creds, "/suggest/gaps", {
     method: "POST",
@@ -429,6 +588,11 @@ export async function getGaps(creds: AkCreds): Promise<GapResult> {
   return parsed.data;
 }
 
+/**
+ * Fetches the service health status from the AllKnower API.
+ *
+ * @returns An object with `status`, `allcodex`, and `ollama` fields, each a string.
+ */
 export async function getHealth(creds: AkCreds): Promise<{ status: string; allcodex: string; ollama: string }> {
   const res = await akFetch(creds, "/health");
   return res.json();
@@ -439,6 +603,11 @@ export interface ModelChainConfig {
   autoMode: boolean;
 }
 
+/**
+ * Retrieves model chain configurations keyed by chain identifier.
+ *
+ * @returns A record mapping chain names to `ModelChainConfig` objects.
+ */
 export async function getModelChains(creds: AkCreds): Promise<Record<string, ModelChainConfig>> {
   const res = await akFetch(creds, "/config/models");
   return res.json();

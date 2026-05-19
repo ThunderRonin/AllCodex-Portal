@@ -3,6 +3,15 @@
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
+/**
+ * Renders an error UI indicating that AI tools are unavailable.
+ *
+ * Displays the error message when present or a fallback prompt to verify AllKnower in Settings, and provides a "Try again" button that invokes `reset`. Logs the provided `error` to the console whenever it changes.
+ *
+ * @param error - The error object to display; may include an optional `digest` field.
+ * @param reset - Callback invoked when the user clicks the "Try again" button to retry loading the AI tool.
+ * @returns The rendered error UI for unavailable AI tools.
+ */
 export default function AIToolsError({
   error,
   reset,

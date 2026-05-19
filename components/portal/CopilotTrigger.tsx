@@ -4,6 +4,12 @@ import { Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCopilotStore } from "@/lib/stores/copilot-store";
 
+/**
+ * Renders a "Lore Copilot" button that opens the copilot for a specific note when clicked.
+ *
+ * @param noteId - The identifier of the note to open in the copilot
+ * @returns A React element representing the copilot trigger button
+ */
 export function CopilotTrigger({ noteId }: { noteId: string }) {
   const open = useCopilotStore((state) => state.open);
 

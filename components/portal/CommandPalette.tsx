@@ -14,6 +14,13 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Book, LayoutDashboard, BrainCircuit, Search, Wand2, Network, Swords } from "lucide-react";
 
+/**
+ * Render a command palette dialog that provides keyboard-accessible navigation and AI tool commands.
+ *
+ * The palette toggles with the Cmd/Ctrl+K shortcut, allows searching, and runs navigation commands that close the dialog and navigate to the selected route.
+ *
+ * @returns A JSX element rendering the command palette dialog
+ */
 export function CommandPalette() {
   const [open, setOpen] = React.useState(false);
   const router = useRouter();

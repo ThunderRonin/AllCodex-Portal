@@ -7,6 +7,15 @@ export type SSEEvent = {
   data: unknown;
 };
 
+/**
+ * Provides a React hook that produces an async generator for consuming an SSE-like POST stream and a cancellation callback.
+ *
+ * The returned `stream` posts `body` as JSON to a given `url`, reads the response body as a text stream, parses lines prefixed with `event: ` and `data: `, attempts to `JSON.parse` each `data:` payload (falls back to the raw string on parse failure), and yields `SSEEvent` objects for each `data:` line. The parser resets the current event name to `"message"` after emitting a payload or encountering a blank line. The returned `cancel` aborts any in-progress request and clears the internal controller.
+ *
+ * @returns An object with:
+ *  - `stream`: an async generator function `(url: string, body: unknown) => AsyncGenerator<SSEEvent>` that consumes the server stream and yields `SSEEvent` values.
+ *  - `cancel`: a function `() => void` that aborts the active fetch/read operation, if any.
+ */
 export function useSSEStream() {
   const abortRef = useRef<AbortController | null>(null);
 

@@ -53,6 +53,15 @@ function getLoreType(note: Note): string {
   );
 }
 
+/**
+ * Render the Lore Browser page content with search, category filtering, and a list of lore entries.
+ *
+ * Synchronizes search and category state with the URL (search is debounced), fetches lore entries,
+ * applies client-side title and category filtering, and renders the sidebar, header, filter input,
+ * a responsive grid of lore cards (with loading, error, and empty states), and a floating Copilot trigger.
+ *
+ * @returns A React element containing the lore browser UI.
+ */
 function LorePageContent() {
   const router = useRouter();
   const pathname = usePathname();

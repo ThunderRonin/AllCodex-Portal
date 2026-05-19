@@ -12,6 +12,15 @@ interface MapData {
     pins: MapPin[];
 }
 
+/**
+ * Renders the map section for a given lore note, including loading, error handling, upload fallback, and pin navigation.
+ *
+ * If the map data is still loading a skeleton placeholder is shown. If loading fails an error message is displayed.
+ * If no image URL is available the `MapUpload` component is rendered and `loadMap` is invoked after a successful upload.
+ * When a map image exists the `MapViewer` is rendered with pins; clicking a pin navigates to the corresponding lore page.
+ *
+ * @param noteId - The ID of the lore note whose map should be displayed
+ */
 export function MapSection({ noteId }: { noteId: string }) {
     const router = useRouter();
     const [data, setData] = useState<MapData | null>(null);

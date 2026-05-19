@@ -13,6 +13,11 @@ const COOKIE_OPTS = {
 
 const PROVISION_COOLDOWN_SECONDS = 30;
 
+/**
+ * Auto-provisions an allknower token and URL when the `allknower_token` cookie is missing, with a short cooldown to avoid repeated attempts.
+ *
+ * @returns A NextResponse that continues request processing. On successful provisioning, sets `allknower_token` and `allknower_url` cookies using the module's cookie options. If provisioning fails or a cooldown is active, sets the `_ak_provision_attempted` cookie to enforce the cooldown.
+ */
 export async function middleware(request: NextRequest) {
     const hasToken = request.cookies.get("allknower_token")?.value;
     if (hasToken) return NextResponse.next();

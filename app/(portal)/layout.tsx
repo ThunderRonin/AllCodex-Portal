@@ -6,6 +6,12 @@ import { ThemeToggle } from "@/components/portal/ThemeToggle";
 import { CopilotProvider } from "@/components/portal/CopilotProvider";
 import { CommandPalette } from "@/components/portal/CommandPalette";
 
+/**
+ * Layout wrapper that provides sidebar context and renders the app sidebar, a header with controls, and a scrollable main content area.
+ *
+ * @param children - Content to render inside the layout's main scrollable area; `CommandPalette` is mounted after this content.
+ * @returns A React element composing `SidebarProvider` with `AppSidebar`, a header (including `SidebarTrigger`, branding, and `ThemeToggle`), and a main container that wraps `children` with `CopilotProvider`.
+ */
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>

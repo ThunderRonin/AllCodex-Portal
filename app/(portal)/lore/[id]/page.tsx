@@ -117,6 +117,14 @@ function relationTone(name: string): string {
   return "violet";
 }
 
+/**
+ * Renders a portrait card for a lore note.
+ *
+ * Shows the note's portrait image when `note.portraitImageNoteId` is present; otherwise renders a placeholder using up to the first two initials of the note title and guidance about adding a `portraitImage` relation.
+ *
+ * @param note - The note whose portrait or placeholder should be displayed
+ * @returns A card element containing the portrait image or placeholder and its caption
+ */
 function PortraitCard({ note }: { note: Note }) {
   if (note.portraitImageNoteId) {
     return (
@@ -161,6 +169,14 @@ function PortraitCard({ note }: { note: Note }) {
   );
 }
 
+/**
+ * Render a theme song card for a note when a playable URL is available.
+ *
+ * Displays a small card showing the note title, provider label, an embedded player iframe sized for the provider, and an "Open on provider" link. If the note has no parseable theme song URL, nothing is rendered.
+ *
+ * @param note - The note whose `themeSongUrl` will be parsed and embedded
+ * @returns The rendered card element when a theme song is available, `null` otherwise.
+ */
 function ThemeSongCard({ note }: { note: Note }) {
   const themeSong = parseThemeSongUrl(note.themeSongUrl);
 
@@ -205,6 +221,17 @@ function ThemeSongCard({ note }: { note: Note }) {
   );
 }
 
+/**
+ * Renders a two-column detail row showing a label and its corresponding value.
+ *
+ * The left column displays `label` and the right column displays `value`. When
+ * `emphasize` is true, the value receives accent, bold, and uppercase styling.
+ *
+ * @param label - The label text shown in the left column
+ * @param value - The value text shown in the right column
+ * @param emphasize - If true, visually emphasizes the value with accent and uppercase styling
+ * @returns A JSX element representing the labeled detail row
+ */
 function DetailField({ label, value, emphasize = false }: { label: string; value: string; emphasize?: boolean }) {
   return (
     <div className="grid grid-cols-[96px_minmax(0,1fr)] gap-3 border-b border-border/25 py-2 last:border-0">
@@ -243,6 +270,15 @@ function RelatedEntryCard({ entry }: { entry: { noteId: string; title: string; l
   );
 }
 
+/**
+ * Render the lore detail page for a single note.
+ *
+ * Displays the note's metadata, main content (with GM/player preview modes), portrait, theme song embed (when present),
+ * optional geo map view, grouped relations, related entries and backlinks, and a right-hand lore rail with detail fields and actions.
+ *
+ * @param params - A promise resolving to route parameters containing the `id` of the note to display.
+ * @returns The React element tree for the lore detail view for the specified note id.
+ */
 export default function LoreDetailPage({
   params,
 }: {

@@ -54,6 +54,13 @@ interface ApplyRelationshipsResult {
   }>;
 }
 
+/**
+ * Render the Relationship Suggestions UI that lets the user paste lore text, fetch AI-generated relationship suggestions, and apply selected bidirectional relationships to a note.
+ *
+ * The component reads an optional `noteId` from URL search params and, when present, loads the note's plain text into the input. It posts the pasted or loaded text to the suggestions API, presents results with apply controls, and manages per-suggestion application state and failure messages.
+ *
+ * @returns A React element containing the relationship suggestions interface.
+ */
 function RelationshipsContent() {
   const searchParams = useSearchParams();
   const noteId = searchParams.get("noteId");

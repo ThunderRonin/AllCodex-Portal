@@ -33,7 +33,13 @@ const ALLCODEX_ETAPI_TOKEN = process.env.TEST_ALLCODEX_ETAPI_TOKEN ?? "";
 
 // --------------------------------------------------------------------------
 // Helpers
-// --------------------------------------------------------------------------
+/**
+ * Attempts to create a test account using the service's email sign-up endpoint.
+ *
+ * Logs a warning with response status and body when the request fails.
+ *
+ * @returns `true` if the account was created or already exists (HTTP 200, 422, or 409), `false` otherwise.
+ */
 
 async function signUp(baseUrl: string, email: string, password: string): Promise<boolean> {
   const res = await fetch(`${baseUrl}/api/auth/sign-up/email`, {
@@ -55,6 +61,14 @@ async function signUp(baseUrl: string, email: string, password: string): Promise
   return false;
 }
 
+/**
+ * Signs in to the given base URL using email and password and retrieves the auth token from the response header.
+ *
+ * @param baseUrl - Base URL of the server (e.g., "http://localhost:3000")
+ * @param email - Account email to sign in
+ * @param password - Account password to sign in
+ * @returns The value of the `set-auth-token` response header if sign-in succeeded, `null` otherwise.
+ */
 async function signIn(
   baseUrl: string,
   email: string,
@@ -84,6 +98,15 @@ async function signIn(
   return token;
 }
 
+/**
+ * Attempts to register/connect an AllCodex Core instance with the AllKnower service.
+ *
+ * @param allknowerUrl - Base URL of the AllKnower service to call
+ * @param bearerToken - Bearer token used to authorize the request to AllKnower
+ * @param coreUrl - Base URL of the AllCodex Core instance to connect
+ * @param etapiToken - ETAPI token presented to the Core during connection
+ * @returns `true` if AllKnower returned a successful HTTP status, `false` otherwise
+ */
 async function connectAllCodex(
   allknowerUrl: string,
   bearerToken: string,
@@ -109,7 +132,15 @@ async function connectAllCodex(
 
 // --------------------------------------------------------------------------
 // Global Setup Entry Point
-// --------------------------------------------------------------------------
+/**
+ * Prepare an ephemeral integration test account and emit a Playwright storage-state JSON for later tests.
+ *
+ * Performs idempotent account provisioning and sign-in against the AllKnower service, optionally connects AllCodex Core when an ETAPI token is provided, and writes a storage-state file containing the auth token and AllKnower URL cookies to STORAGE_STATE_PATH.
+ *
+ * The setup is skipped when the environment variable `TEST_OPENROUTER_API_KEY` is not set or when the AllKnower health check is unreachable; in those cases no storage-state file is produced. If token acquisition fails after a single retry, the function returns without writing auth state.
+ *
+ * @param config - Playwright `FullConfig` (used to derive project base URL if needed)
+ */
 
 export default async function globalSetup(config: FullConfig) {
   const allknowerUrl = process.env.TEST_ALLKNOWER_URL ?? "http://localhost:3001";

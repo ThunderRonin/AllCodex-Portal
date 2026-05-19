@@ -3,6 +3,13 @@
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
+/**
+ * Client-side error UI that logs the provided error to the console and displays a retry action.
+ *
+ * @param error - Error object (may include `digest`) whose message is shown to the user
+ * @param reset - Callback invoked when the user requests to retry
+ * @returns A React element rendering the error message and a "Try again" button
+ */
 export default function PortalError({
   error,
   reset,

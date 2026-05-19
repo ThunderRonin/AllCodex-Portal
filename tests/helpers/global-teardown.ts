@@ -16,6 +16,12 @@ const STORAGE_STATE_PATH = path.resolve(
   ".auth/storage-state.json"
 );
 
+/**
+ * Delete the test user account associated with the provided bearer token on the AllKnower service.
+ *
+ * @param allknowerUrl - Base URL of the AllKnower instance (e.g., "http://localhost:3001")
+ * @param token - Bearer token identifying the account to delete
+ */
 async function deleteAccount(allknowerUrl: string, token: string): Promise<void> {
   const res = await fetch(`${allknowerUrl}/api/auth/delete-user`, {
     method: "DELETE",
@@ -36,6 +42,12 @@ async function deleteAccount(allknowerUrl: string, token: string): Promise<void>
   );
 }
 
+/**
+ * Playwright global teardown that removes the ephemeral test account and cleans up local storage state.
+ *
+ * If `TEST_OPENROUTER_API_KEY` is not set, the function exits without performing any teardown.
+ * Otherwise it attempts to extract a bearer token from the file referenced by `STORAGE_STATE_PATH`; if a token is found it calls the AllKnower account-deletion endpoint at `TEST_ALLKNOWER_URL` (defaults to `http://localhost:3001`). Afterward, it removes the local storage state file if present. The function logs warnings when the storage state cannot be parsed, when no token is found, or when account deletion fails.
+ */
 export default async function globalTeardown() {
   const allknowerUrl = process.env.TEST_ALLKNOWER_URL ?? "http://localhost:3001";
 

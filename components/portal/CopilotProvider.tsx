@@ -5,6 +5,15 @@ import { usePathname } from "next/navigation";
 import { ArticleCopilot } from "@/components/portal/ArticleCopilot";
 import { useCopilotStore } from "@/lib/stores/copilot-store";
 
+/**
+ * Wraps application children and installs a keyboard shortcut to toggle the ArticleCopilot on `/lore` pages.
+ *
+ * When the user presses Ctrl/Cmd + Shift + K while on a path that starts with `/lore`, the component toggles the copilot:
+ * if the copilot is open it closes it; otherwise it opens the copilot for a note. When opening, it uses the current
+ * store's `activeNoteId` or extracts an id from URLs matching `/lore/[id]` or `/lore/[id]/edit` (ignoring an id of `"new"`).
+ *
+ * The component always renders its `children` and the `ArticleCopilot` component.
+ */
 export function CopilotProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 

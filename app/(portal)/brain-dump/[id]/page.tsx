@@ -37,6 +37,14 @@ interface BrainDumpDetailEntry {
   } | null;
 }
 
+/**
+ * Renders the Brain Dump detail page for a single history entry, showing metadata (timestamp, model, tokens),
+ * activity stats (created/updated counts), the raw text, an AI-generated summary, and a list of affected entities.
+ *
+ * Sections are rendered conditionally based on load state and available entry data; entity items link to notes when a `noteId` is present.
+ *
+ * @returns The JSX element for the Brain Dump detail page.
+ */
 export default function BrainDumpDetailPage() {
   const { id } = useParams<{ id: string }>();
 

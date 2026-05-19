@@ -139,7 +139,14 @@ export async function getNoteContent(creds: EtapiCreds, noteId: string): Promise
   return res.text();
 }
 
-/** Create a new note */
+/**
+ * Create a new text note on the server.
+ *
+ * If `params.content` is missing or blank, it will be replaced with "<p></p>" before sending.
+ *
+ * @param params - Parameters for the new note. Recognized fields include `parentNoteId`, `title`, optional `type`, `mime`, `content`, `position`, and `noteId`.
+ * @returns The created note and associated branch information as `CreateNoteResponse`.
+ */
 export async function createNote(creds: EtapiCreds, params: CreateNoteParams): Promise<CreateNoteResponse> {
   // ETAPI rejects text notes with empty/missing content — default to an empty paragraph.
   const content =
@@ -260,7 +267,12 @@ export async function getNoteAncestors(
   return ancestors;
 }
 
-/** Search for notes that have any relation pointing TO the given noteId. */
+/**
+ * Find lore notes that have a relation pointing to the specified note.
+ *
+ * @param noteId - The target note ID to search for incoming relations
+ * @returns An array of objects for each matching lore note: `{ noteId, title, loreType }` where `loreType` is the note's `loreType` attribute value or `null`; returns an empty array on failure
+ */
 export async function searchBacklinks(
   creds: EtapiCreds,
   noteId: string,
@@ -287,6 +299,14 @@ export async function searchBacklinks(
   }
 }
 
+/**
+ * Determines whether a note is marked as lore based on its attributes.
+ *
+ * Checks the note's `attributes` for a label attribute whose `name` is `"lore"` or `"loreType"`.
+ *
+ * @param note - Object containing the note's `attributes` to inspect
+ * @returns `true` if such a label attribute is present, `false` otherwise.
+ */
 function isLoreNote(note: Pick<EtapiNote, "attributes">): boolean {
   return (
     note.attributes?.some(
@@ -297,6 +317,12 @@ function isLoreNote(note: Pick<EtapiNote, "attributes">): boolean {
   );
 }
 
+/**
+ * Finds and returns the note ID referenced by the portrait relation on a note.
+ *
+ * @param note - The note to inspect for a portrait relation attribute
+ * @returns The portrait image's note ID as a `string`, or `null` if no portrait relation is present
+ */
 export function getPortraitImageNoteId(note: EtapiNote): string | null {
   const portraitRelation = note.attributes?.find(
     (attr) => attr.type === "relation" && isPortraitRelationName(attr.name),
@@ -304,10 +330,22 @@ export function getPortraitImageNoteId(note: EtapiNote): string | null {
   return portraitRelation?.value ?? null;
 }
 
+/**
+ * Resolve the theme song URL associated with a note.
+ *
+ * @param note - The note from which to read theme song metadata
+ * @returns The theme song URL if present, `null` otherwise
+ */
 export function getThemeSongUrl(note: EtapiNote): string | null {
   return resolveThemeSongUrl(note);
 }
 
+/**
+ * Resolve relation attributes on a note into summaries that include target titles and lore types.
+ *
+ * @param note - The source note whose `relation` attributes (excluding templates and portrait relations) will be resolved
+ * @returns An array of `ResolvedRelation` objects for each relation; when the target note cannot be fetched, `targetTitle` is set to the target note id and `loreType` is `null`
+ */
 export async function resolveNoteRelations(
   creds: EtapiCreds,
   note: EtapiNote,

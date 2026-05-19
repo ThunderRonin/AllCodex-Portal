@@ -3,6 +3,15 @@
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
+/**
+ * Render an error UI for brain-dump failures and log the error to the console.
+ *
+ * Logs the provided `error` to `console.error` when the component mounts or when `error` changes.
+ *
+ * @param error - The error to display; its `message` is shown and it may include a `digest` field for grouping.
+ * @param reset - Callback invoked when the user clicks the "Try again" button to retry or reset the error state.
+ * @returns A React element that displays the brain dump error UI.
+ */
 export default function BrainDumpError({
   error,
   reset,

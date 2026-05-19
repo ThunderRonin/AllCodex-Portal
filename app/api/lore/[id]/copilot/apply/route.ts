@@ -10,6 +10,16 @@ const ApplyBodySchema = z.object({
   approvedTargetIds: z.array(z.string()),
 });
 
+/**
+ * Apply a Copilot proposal to the lore article identified by the route `id`.
+ *
+ * Validates ETAPI credentials and the request body, then invokes the application
+ * of the provided `proposal` with the supplied `approvedTargetIds`. Responds
+ * with a JSON object that reflects the result of that operation.
+ *
+ * @param params - A promise resolving to an object with `id` (the route article identifier)
+ * @returns A JSON response containing an `applied` field with the result of applying the proposal
+ */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const creds = await getEtapiCreds();

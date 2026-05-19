@@ -33,7 +33,14 @@ interface StatusPayload {
   allknower: { ok: boolean; configured: boolean; url: string | null; error?: string };
 }
 
-// ── AllCodex card ──────────────────────────────────────────────────────────────
+/**
+ * Render the AllCodex configuration card with connection controls, status badge, and an advanced override panel.
+ *
+ * The card shows current connection state and version, allows connecting via ETAPI token or Trilium password, supports disconnecting, and exposes an advanced section to override the service URL. Displays loading state and errors inline.
+ *
+ * @param initialStatus - Optional initial status object from `/api/config/status` for the AllCodex integration used to seed connection state and URL
+ * @returns The AllCodex configuration card JSX element
+ */
 
 function AllCodexCard({ initialStatus }: { initialStatus?: StatusPayload["allcodex"] }) {
   const [state, setState] = useState<ConnState>(
@@ -49,6 +56,11 @@ function AllCodexCard({ initialStatus }: { initialStatus?: StatusPayload["allcod
 
   const isConnected = state === "connected";
 
+  /**
+   * Attempts to connect to AllCodex using the current `url` and `token`, then updates component state and version based on the resulting system status.
+   *
+   * While the operation runs the component's loading state is toggled. On success the connection state is set to `"connected"` and the `version` is updated; on failure the connection state is set to `"error"` and the error message is recorded.
+   */
   async function handleConnectToken() {
     if (!url || !token) return;
     setLoading(true);
@@ -76,6 +88,11 @@ function AllCodexCard({ initialStatus }: { initialStatus?: StatusPayload["allcod
     }
   }
 
+  /**
+   * Attempt to authenticate to AllKnower using the current `url` and `password`, then update the card's connection state and AllCodex version.
+   *
+   * Requires `url` and `password` to be set before calling. On success this sets the connection state to `"connected"`, clears the stored password, and updates the stored AllCodex `version` from the system status. On failure it sets the connection state to `"error"` and records the error message. Also manages the component's loading and error indicators.
+   */
   async function handleLoginPassword() {
     if (!url || !password) return;
     setLoading(true);
@@ -100,6 +117,14 @@ function AllCodexCard({ initialStatus }: { initialStatus?: StatusPayload["allcod
     }
   }
 
+  /**
+   * Disconnects the AllCodex integration and resets the component's connection state.
+   *
+   * Attempts to remove the AllCodex integration on the server and then clears local
+   * connection-related state (connection state, version, credentials, and error).
+   * Network or server errors during the disconnect request are ignored and do not
+   * prevent the local state reset.
+   */
   async function handleDisconnect() {
     setLoading(true);
     try {
@@ -215,6 +240,16 @@ function AllCodexCard({ initialStatus }: { initialStatus?: StatusPayload["allcod
 
 type AkMode = "idle" | "login" | "register";
 
+/**
+ * Render the AllKnower configuration card that displays connection status and provides controls
+ * to override the service URL, log in, register, or disconnect.
+ *
+ * The card manages its own local form and connection state (connected, disconnected, error)
+ * and exposes UI for an advanced override section with login/register flows and a disconnect action.
+ *
+ * @param initialStatus - Optional initial status payload for AllKnower (used to derive the initial connection state and URL)
+ * @returns The AllKnower configuration card as a React element
+ */
 function AllKnowerCard({ initialStatus }: { initialStatus?: StatusPayload["allknower"] }) {
   const [state, setState] = useState<ConnState>(
     initialStatus?.ok ? "connected" : initialStatus?.configured ? "error" : "disconnected"
@@ -368,7 +403,11 @@ function AllKnowerCard({ initialStatus }: { initialStatus?: StatusPayload["allkn
   );
 }
 
-// ── Share Config card ─────────────────────────────────────────────────────────
+/**
+ * Renders the Share Configuration card which displays the current public share root and lets the user set a new share root note ID.
+ *
+ * Fetches the current share configuration on mount. Provides an input to enter a note ID and a Save action that persists the value to the server, updates the displayed current configuration on success, shows save/saving UI states, and surfaces any server errors.
+ */
 
 function ShareConfigCard() {
   const [noteId, setNoteId] = useState("");
@@ -384,6 +423,11 @@ function ShareConfigCard() {
       .catch(() => {});
   }, []);
 
+  /**
+   * Persist the entered public share root note ID to the server and update the local share state.
+   *
+   * If the note ID is empty (after trimming) the function returns immediately. While saving it sets the saving flag; on success it refreshes the current share configuration, clears the input, and sets a transient saved indicator for 2 seconds. On failure it records the error message. The saving flag is cleared when the operation completes.
+   */
   async function handleSave() {
     if (!noteId.trim()) return;
     setSaving(true); setError(null); setSaved(false);
@@ -433,6 +477,14 @@ function ShareConfigCard() {
   );
 }
 
+/**
+ * Render the Portal Configuration card for viewing and updating the portal's lore root note ID.
+ *
+ * The card fetches the current `loreRootNoteId` on mount and allows the user to edit and save a new ID,
+ * persisting changes to the server and showing loading, success, and error states.
+ *
+ * @returns The React element for the Portal Configuration card UI.
+ */
 function PortalConfigCard() {
   const [loreRootId, setLoreRootId] = useState("");
   const [saved, setSaved] = useState(false);
@@ -477,6 +529,13 @@ function PortalConfigCard() {
   );
 }
 
+/**
+ * Render a development/debug card that exposes a destructive "wipe" operation.
+ *
+ * Provides a button which, after explicit user confirmation, calls the wipe API and displays success or error feedback to the user.
+ *
+ * @returns The React element for the Dev / Debug card containing the destructive control and status message.
+ */
 function DevDebugCard() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -517,7 +576,13 @@ function DevDebugCard() {
   );
 }
 
-// ── Page ───────────────────────────────────────────────────────────────────────
+/**
+ * Render the Settings page, fetch the system connection status on mount, and display configuration cards for integrations and tools.
+ *
+ * The component shows a loading skeleton while status is being fetched and renders AllKnower, AllCodex, Portal, Share, and Dev/Debug cards once loaded. It also updates the page header when both services are connected.
+ *
+ * @returns The Settings page React element
+ */
 
 export default function SettingsPage() {
   const [status, setStatus] = useState<StatusPayload | null>(null);

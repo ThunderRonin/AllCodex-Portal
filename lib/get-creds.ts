@@ -20,6 +20,17 @@ export interface AkCreds {
   token: string;
 }
 
+/**
+ * Resolve ETAPI (AllCodex) credentials for server-side use.
+ *
+ * Attempts to derive per-user credentials from signed-in AllKnower session cookies and the
+ * internal portal secret; falls back to environment-configured credentials for non-production
+ * environments. In production, missing credentials result in empty values unless a per-user
+ * token is present without the required portal secret (which is treated as a configuration error).
+ *
+ * @returns An object with `url` and `token` for ETAPI; each is an empty string when no valid credential is available.
+ * @throws ServiceError with code `NOT_CONFIGURED` and HTTP status 503 when a per-user AllCodex token is present but `PORTAL_INTERNAL_SECRET` is not set in production.
+ */
 export async function getEtapiCreds(): Promise<EtapiCreds> {
   const jar = await cookies();
   const rawAllknowerUrl = jar.get("allknower_url")?.value ?? process.env.ALLKNOWER_URL ?? "";
@@ -59,6 +70,15 @@ export async function getEtapiCreds(): Promise<EtapiCreds> {
   };
 }
 
+/**
+ * Resolve AllKnower (AK) service credentials from session cookies with environment fallbacks.
+ *
+ * Attempts to obtain the AK base URL from the `allknower_url` cookie (validated) or `ALLKNOWER_URL` env.
+ * The bearer token is taken from the `allknower_token` cookie or falls back to `ALLKNOWER_BEARER_TOKEN`.
+ * If URL validation fails or required credentials are missing in production, returns empty credentials.
+ *
+ * @returns An object with `url` set to the resolved AK base URL (or `""` if unavailable) and `token` set to the resolved bearer token (cookie, env fallback, or `""`).
+ */
 export async function getAkCreds(): Promise<AkCreds> {
   const jar = await cookies();
   const rawUrl = jar.get("allknower_url")?.value;

@@ -16,6 +16,13 @@ interface PreviewToggleProps {
   onChange: (mode: PreviewMode) => void;
 }
 
+/**
+ * Render a two-button toggle for switching between "gm" and "player" preview modes.
+ *
+ * @param mode - Currently selected preview mode, either `"gm"` or `"player"`
+ * @param onChange - Callback invoked with the newly selected `PreviewMode` when a button is clicked
+ * @returns The rendered toggle element containing the GM and Player buttons
+ */
 export function PreviewToggle({ mode, onChange }: PreviewToggleProps) {
   return (
     <div className="flex items-center gap-1 rounded-lg border border-border/40 bg-muted/20 p-1">

@@ -31,12 +31,26 @@ type ExistingTargetSnapshot = {
   parentNoteIds: string[];
 };
 
+/**
+ * Produce a short UI label describing a proposal target's role relative to a note.
+ *
+ * @param noteId - The current note's id used to determine if a target refers to this note
+ * @param target - The proposal target whose `kind` and `targetId` determine the label
+ * @returns `"new linked note"` if `target.kind` is `"create"`, `"current"` if `target.targetId` equals `noteId`, `"linked existing"` otherwise
+ */
 function targetRoleLabel(noteId: string, target: CopilotProposalTarget) {
   if (target.kind === "create") return "new linked note";
   if (target.targetId === noteId) return "current";
   return "linked existing";
 }
 
+/**
+ * Fetches a note's metadata and HTML content and returns a snapshot for proposal previews.
+ *
+ * @returns An ExistingTargetSnapshot containing `title`, `loreType` (defaults to `'lore'` if absent), `contentHtml`, and `parentNoteIds` (empty array if absent).
+ *
+ * @throws If either the note metadata or content request fails.
+ */
 async function fetchTargetSnapshot(noteId: string): Promise<ExistingTargetSnapshot> {
   const [note, contentHtml] = await Promise.all([
     fetchJsonOrThrow<{
@@ -58,6 +72,17 @@ async function fetchTargetSnapshot(noteId: string): Promise<ExistingTargetSnapsh
   };
 }
 
+/**
+ * Renders a selectable review card for a single copilot proposal target, showing before/after title and content, label and relation changes, and rationale.
+ *
+ * @param noteId - The current note's ID (used to compute the target role label).
+ * @param target - The proposal target to display (create or update) including title, content, rationale, label and relation diffs.
+ * @param checked - Whether the target is currently selected.
+ * @param onCheckedChange - Callback invoked with the new checked state when the selection checkbox changes.
+ * @param snapshot - Optional cached "before" snapshot for existing targets (provides title and HTML content).
+ * @param newNoteParentLabel - Human-readable parent label to display for `create` targets.
+ * @returns A JSX element rendering the proposal card with diffs and selectable checkbox.
+ */
 function ProposalCard({
   noteId,
   target,
@@ -181,6 +206,13 @@ function ProposalCard({
   );
 }
 
+/**
+ * Renders the article-scoped copilot panel that provides a chat interface, proposal review UI, and workflows to apply or redirect suggested changes.
+ *
+ * The panel streams assistant responses, displays grounding citations and a pending proposal with selectable targets, fetches "before" snapshots for update targets, and can apply selected changes to the backend or submit a redirect instruction. When there is no active note ID, the component returns `null`.
+ *
+ * @returns The component's rendered sheet UI for the active note, or `null` when no active note is available.
+ */
 export function ArticleCopilot() {
   const store = useCopilotStore();
   const noteId = store.activeNoteId;
