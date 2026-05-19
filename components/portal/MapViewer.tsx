@@ -20,6 +20,15 @@ export interface MapViewerProps {
     onPinClick?: (noteId: string) => void;
 }
 
+function escapeHtml(value: string): string {
+    return value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
 function MapViewerInner({
     imageUrl,
     imageWidth,
@@ -69,9 +78,9 @@ function MapViewerInner({
             for (const pin of pins) {
                 const marker = L.marker([pin.y, pin.x], { icon: pinIcon }).addTo(map);
                 const popupHtml = `<div class="map-pin-popup">
-                    <strong>${pin.title}</strong>
-                    ${pin.loreType ? `<span class="text-xs text-muted-foreground ml-1">(${pin.loreType})</span>` : ""}
-                    ${pin.description ? `<p class="text-sm mt-1">${pin.description}</p>` : ""}
+                    <strong>${escapeHtml(pin.title)}</strong>
+                    ${pin.loreType ? `<span class="text-xs text-muted-foreground ml-1">(${escapeHtml(pin.loreType)})</span>` : ""}
+                    ${pin.description ? `<p class="text-sm mt-1">${escapeHtml(pin.description)}</p>` : ""}
                 </div>`;
                 marker.bindPopup(popupHtml);
                 if (onPinClick) {

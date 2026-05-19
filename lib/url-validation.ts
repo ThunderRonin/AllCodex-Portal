@@ -21,13 +21,17 @@ export function validateAllKnowerUrl(rawUrl: string): string {
     const hostname = url.hostname;
     const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
 
-    if (!isLocalhost || isProd) {
+    if (isProd && isLocalhost) {
+        throw new Error("AllKnower URL must not target localhost in production");
+    }
+
+    if (!isLocalhost) {
         for (const range of PRIVATE_RANGES) {
             if (range.test(hostname)) {
                 throw new Error("AllKnower URL must not target private network ranges");
             }
         }
-        if (hostname === "::1" || hostname.startsWith("fe80:")) {
+        if (hostname.startsWith("fe80:")) {
             throw new Error("AllKnower URL must not target link-local addresses");
         }
     }
