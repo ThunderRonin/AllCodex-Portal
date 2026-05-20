@@ -21,16 +21,27 @@ interface Suggestion {
   targetTitle: string;
   relationshipType: string;
   description: string;
+  confidence?: "high" | "medium" | "low";
 }
 
 const RELATION_COLORS: Record<string, string> = {
   ally: "text-green-400 border-green-500/40",
   enemy: "text-red-400 border-red-500/40",
+  rival: "text-orange-400 border-orange-500/40",
   family: "text-pink-400 border-pink-500/40",
-  location: "text-blue-400 border-blue-500/40",
-  event: "text-yellow-400 border-yellow-500/40",
-  faction: "text-purple-400 border-purple-500/40",
-  other: "text-muted-foreground border-border",
+  member_of: "text-violet-400 border-violet-500/40",
+  leader_of: "text-purple-400 border-purple-500/40",
+  serves: "text-indigo-400 border-indigo-500/40",
+  located_in: "text-sky-400 border-sky-500/40",
+  originates_from: "text-cyan-400 border-cyan-500/40",
+  participated_in: "text-amber-400 border-amber-500/40",
+  caused: "text-yellow-500 border-yellow-500/40",
+  created: "text-emerald-400 border-emerald-500/40",
+  owns: "text-orange-300 border-orange-400/40",
+  wields: "text-fuchsia-400 border-fuchsia-500/40",
+  worships: "text-violet-300 border-violet-400/40",
+  inhabits: "text-teal-400 border-teal-500/40",
+  related_to: "text-muted-foreground border-border",
 };
 
 interface ApplyRelationshipsResult {
@@ -237,6 +248,15 @@ function RelationshipsContent() {
                     <Badge variant="outline" className={`text-xs capitalize ${colorClass}`}>
                       {s.relationshipType.replace(/_/g, " ")}
                     </Badge>
+                    {s.confidence && (
+                      <span className={`text-[10px] font-medium uppercase tracking-wide ${
+                        s.confidence === "high" ? "text-green-400" :
+                        s.confidence === "medium" ? "text-yellow-400" :
+                        "text-muted-foreground"
+                      }`}>
+                        {s.confidence}
+                      </span>
+                    )}
                     <Link
                       href={`/lore/${s.targetNoteId}`}
                       className="text-sm font-medium text-primary hover:underline flex items-center gap-1"

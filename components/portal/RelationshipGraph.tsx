@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +46,7 @@ interface Suggestion {
   targetTitle: string;
   relationshipType: string;
   description: string;
+  confidence?: "high" | "medium" | "low";
 }
 
 interface RelationshipsResponse {
@@ -350,9 +351,12 @@ export function RelationshipGraph({ noteId, noteTitle }: RelationshipGraphProps)
 
   const chart = edges.length > 0 ? buildMermaidDSL(noteTitle, noteId, edges) : "";
 
-  const handleNodeClick = (nodeId: string) => {
-    router.push(`/lore/${nodeId}`);
-  };
+  const handleNodeClick = useCallback(
+    (nodeId: string) => {
+      router.push(`/lore/${nodeId}`);
+    },
+    [router]
+  );
 
   const existingKeys = new Set((data?.existing ?? []).map((rel) => `${rel.targetNoteId}::${normalizeRelationshipType(rel.name)}`));
   const aiSuggestions = (data?.suggestions ?? []).filter(
@@ -455,6 +459,15 @@ export function RelationshipGraph({ noteId, noteTitle }: RelationshipGraphProps)
                         >
                           {formatRelationshipLabel(s.relationshipType)}
                         </Badge>
+                        {s.confidence && (
+                          <span className={`text-[9px] font-medium uppercase tracking-wide ${
+                            s.confidence === "high" ? "text-green-400" :
+                            s.confidence === "medium" ? "text-yellow-400" :
+                            "text-muted-foreground"
+                          }`}>
+                            {s.confidence}
+                          </span>
+                        )}
                         <Link
                           href={`/lore/${s.targetNoteId}`}
                           className="text-xs font-medium text-primary hover:underline flex items-center gap-0.5"
