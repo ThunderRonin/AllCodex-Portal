@@ -9,7 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Network, ChevronDown, ChevronUp, Loader2, Check, Plus, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MermaidDiagram } from "./MermaidDiagram";
+import { type Node as RFNode, type Edge as RFEdge, MarkerType } from "@xyflow/react";
+import { ReactFlowGraph } from "./ReactFlowGraph";
 
 // ── Relationship type → edge color mapping ────────────────────────────────────
 
@@ -82,36 +83,6 @@ interface Edge {
   source: "existing" | "ai";
 }
 
-/**
- * Sanitizes a node label for Mermaid diagrams.
- *
- * Returns `"Unknown"` for falsy input, escapes characters that could break Mermaid labels
- * (quotes, angle brackets, brackets, parentheses, braces, pipes, backticks, backslashes, semicolons),
- * and replaces newlines/carriage returns with spaces.
- *
- * @param text - The raw label text to sanitize; may be `undefined`
- * @returns The sanitized label string suitable for use in Mermaid node labels (`"Unknown"` if `text` is falsy)
- */
-
-function sanitizeLabel(text: string | undefined): string {
-  if (!text) return "Unknown";
-  return text
-    .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\[/g, "&#91;")
-    .replace(/]/g, "&#93;")
-    .replace(/\(/g, "&#40;")
-    .replace(/\)/g, "&#41;")
-    .replace(/\{/g, "&#123;")
-    .replace(/}/g, "&#125;")
-    .replace(/\|/g, "&#124;")
-    .replace(/`/g, "&#96;")
-    .replace(/\\/g, "&#92;")
-    .replace(/;/g, "&#59;")
-    .replace(/[\n\r]/g, " ");
-}
-
 const RELATION_NAME_TO_CANONICAL: Record<string, string> = {
   relAlly: "ally",
   relEnemy: "enemy",
@@ -133,108 +104,114 @@ const RELATION_NAME_TO_CANONICAL: Record<string, string> = {
   relOther: "related_to",
 };
 
-/**
- * Map a UI or AI relationship identifier to its canonical relationship type.
- *
- * @param type - The relationship name or identifier produced by the UI or AI
- * @returns The canonical relationship type for `type` if a mapping exists, otherwise the original `type`
- */
 function normalizeRelationshipType(type: string): string {
   return RELATION_NAME_TO_CANONICAL[type] ?? type;
 }
 
-/**
- * Produce a display-ready label for a relationship type by converting the input to its canonical form and replacing underscores with spaces.
- *
- * @param type - Raw relationship type or UI name to format
- * @returns The formatted relationship label with words separated by spaces
- */
 function formatRelationshipLabel(type: string): string {
   return normalizeRelationshipType(type).replace(/_/g, " ");
 }
 
-/**
- * Create a stable key for a suggestion composed of the target note ID and the normalized relationship type.
- *
- * @param suggestion - Object containing `targetNoteId` and `relationshipType`; only these fields are used to form the key.
- * @returns A string in the form `targetNoteId::normalizedRelationshipType`, where the relationship type has been normalized for canonical comparison.
- */
 function suggestionKey(suggestion: Pick<Suggestion, "targetNoteId" | "relationshipType">): string {
   return `${suggestion.targetNoteId}::${normalizeRelationshipType(suggestion.relationshipType)}`;
 }
 
-/**
- * Build a Mermaid `graph LR` DSL describing the center node and given relationship edges.
- *
- * Produces a Mermaid diagram that styles the center node, renders one node per unique (targetId, normalized relationship type) edge, draws solid arrows for existing relations and dashed arrows for AI suggestions (including relationship labels), applies per-edge colors, and adds click handlers to navigate to each target's lore page.
- *
- * @param centerTitle - Label text for the center node (sanitized for Mermaid)
- * @param centerId - Identifier for the center node (used as the logical source entry id)
- * @param edges - Array of edges to render; each edge should include `source` ("existing" | "ai"), `targetId`, `targetTitle`, and `type` (relationship type)
- * @returns A Mermaid `graph LR` DSL string describing the nodes, links, styles, and click handlers; returns an empty string when `edges` is empty.
- */
-function buildMermaidDSL(
+function buildGraphData(
   centerTitle: string,
   centerId: string,
   edges: Edge[]
-): string {
-  if (edges.length === 0) return "";
+): { nodes: RFNode[]; edges: RFEdge[] } {
+  if (edges.length === 0) return { nodes: [], edges: [] };
 
-  const lines: string[] = ["graph LR"];
+  // Separate node dedup (by targetId) from edge dedup (by targetId::canonType).
+  // Same target with multiple relationship types → one node, multiple edges.
+  const nodeMap = new Map<string, Edge>();
+  const edgeSeen = new Set<string>();
+  const uniqueEdges: Edge[] = [];
 
-  // Center node with special styling
-  lines.push(`  center["${sanitizeLabel(centerTitle)}"]`);
-  lines.push(`  style center fill:#6b4c2a,stroke:#d4a843,stroke-width:2px,color:#e8dcc8`);
-
-  // Deduplicate only exact semantic duplicates; multiple relationship types to
-  // the same target are distinct.
-  const seen = new Map<string, Edge>();
   for (const edge of edges) {
-    const key = `${edge.targetId}::${normalizeRelationshipType(edge.type)}`;
-    const existing = seen.get(key);
-    if (!existing || (edge.source === "existing" && existing.source === "ai")) {
-      seen.set(key, edge);
+    const canonType = normalizeRelationshipType(edge.type);
+    const edgeKey = `${edge.targetId}::${canonType}`;
+
+    const prevNode = nodeMap.get(edge.targetId);
+    if (!prevNode || (edge.source === "existing" && prevNode.source === "ai")) {
+      nodeMap.set(edge.targetId, edge);
+    }
+
+    if (!edgeSeen.has(edgeKey)) {
+      edgeSeen.add(edgeKey);
+      uniqueEdges.push(edge);
     }
   }
 
-  const uniqueEdges = Array.from(seen.values());
-  const edgeStyleIndices: { idx: number; color: string }[] = [];
+  const uniqueNodes = Array.from(nodeMap.values());
+  const radius = 220;
+  const centerX = 0;
+  const centerY = 0;
 
-  uniqueEdges.forEach((edge, i) => {
-    const nodeKey = `n${i}`;
-    const label = sanitizeLabel(edge.targetTitle);
-    const typeLabel = formatRelationshipLabel(edge.type);
-    const isDashed = edge.source === "ai";
+  const centerNode: RFNode = {
+    id: centerId,
+    position: { x: centerX, y: centerY },
+    data: { label: centerTitle || "Unknown" },
+    style: {
+      background: "#6b4c2a",
+      color: "#e8dcc8",
+      border: "2px solid #d4a843",
+      borderRadius: "8px",
+      padding: "8px 16px",
+      fontSize: "13px",
+      fontWeight: 600,
+      cursor: "pointer",
+    },
+  };
 
-    lines.push(`  ${nodeKey}["${label}"]`);
+  const rfNodes: RFNode[] = [centerNode];
 
-    if (isDashed) {
-      lines.push(`  center -.->|${typeLabel}| ${nodeKey}`);
-    } else {
-      lines.push(`  center -->|${typeLabel}| ${nodeKey}`);
-    }
+  uniqueNodes.forEach((edge, i) => {
+    const angle = (2 * Math.PI * i) / uniqueNodes.length - Math.PI / 2;
+    const x = centerX + radius * Math.cos(angle);
+    const y = centerY + radius * Math.sin(angle);
+    const isAI = edge.source === "ai";
 
-    // Style AI-suggested nodes slightly differently
-    if (isDashed) {
-      lines.push(`  style ${nodeKey} fill:#1a1528,stroke:#555,stroke-dasharray:5 5,color:#d4c9a8`);
-    } else {
-      lines.push(`  style ${nodeKey} fill:#1a1528,stroke:#8b6914,color:#e8dcc8`);
-    }
-
-    // Track edge color
-    const color = EDGE_COLORS[normalizeRelationshipType(edge.type)] ?? EDGE_COLORS.related_to;
-    edgeStyleIndices.push({ idx: i, color });
-
-    // Click handler → navigate to lore entry
-    lines.push(`  click ${nodeKey} "/lore/${edge.targetId}"`);
+    rfNodes.push({
+      id: edge.targetId,
+      position: { x, y },
+      data: { label: edge.targetTitle || "Unknown" },
+      style: {
+        background: "#1a1528",
+        color: isAI ? "#d4c9a8" : "#e8dcc8",
+        border: isAI ? "1px dashed #555" : "1px solid #8b6914",
+        borderRadius: "8px",
+        padding: "6px 12px",
+        fontSize: "12px",
+        cursor: "pointer",
+      },
+    });
   });
 
-  // Apply edge colors via linkStyle
-  for (const { idx, color } of edgeStyleIndices) {
-    lines.push(`  linkStyle ${idx} stroke:${color},stroke-width:2px`);
-  }
+  const rfEdges: RFEdge[] = uniqueEdges.map((edge) => {
+    const canonType = normalizeRelationshipType(edge.type);
+    const color = EDGE_COLORS[canonType] ?? EDGE_COLORS.related_to;
+    const isAI = edge.source === "ai";
 
-  return lines.join("\n");
+    return {
+      id: `e-${centerId}-${edge.targetId}-${canonType}`,
+      source: centerId,
+      target: edge.targetId,
+      label: formatRelationshipLabel(edge.type),
+      style: {
+        stroke: color,
+        strokeWidth: 2,
+        strokeDasharray: isAI ? "5 5" : undefined,
+      },
+      labelStyle: { fill: "#94a3b8", fontSize: 10 },
+      labelBgStyle: { fill: "#1a1528", fillOpacity: 0.8 },
+      labelBgPadding: [4, 2] as [number, number],
+      markerEnd: { type: MarkerType.ArrowClosed, color },
+    };
+  });
+
+  return { nodes: rfNodes, edges: rfEdges };
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -246,13 +223,6 @@ interface RelationshipGraphProps {
   noteTitle: string;
 }
 
-/**
- * Render a relationship map for a note, showing existing relations and AI-generated suggestions with controls to apply suggestions.
- *
- * @param noteId - The note identifier used as the graph center id and for API requests
- * @param noteTitle - The title shown as the graph center node label
- * @returns A React element containing the relationship diagram, suggestion list, and Apply controls
- */
 export function RelationshipGraph({ noteId, noteTitle }: RelationshipGraphProps) {
   const [expanded, setExpanded] = useState(false);
   const [applied, setApplied] = useState<Set<string>>(new Set());
@@ -349,11 +319,11 @@ export function RelationshipGraph({ noteId, noteTitle }: RelationshipGraphProps)
     }
   }
 
-  const chart = edges.length > 0 ? buildMermaidDSL(noteTitle, noteId, edges) : "";
+  const graphData = buildGraphData(noteTitle, noteId, edges);
 
   const handleNodeClick = useCallback(
-    (nodeId: string) => {
-      router.push(`/lore/${nodeId}`);
+    (_event: React.MouseEvent, node: RFNode) => {
+      router.push(`/lore/${node.id}`);
     },
     [router]
   );
@@ -412,12 +382,13 @@ export function RelationshipGraph({ noteId, noteTitle }: RelationshipGraphProps)
           )}
 
           {/* Diagram */}
-          {chart && (
+          {graphData.nodes.length > 0 && (
             <div className="space-y-2">
-              <MermaidDiagram
-                chart={chart}
+              <ReactFlowGraph
+                nodes={graphData.nodes}
+                edges={graphData.edges}
                 onNodeClick={handleNodeClick}
-                className="rounded-md border border-border/30 bg-background/50 p-2"
+                className="rounded-md border border-border/30 bg-background/50"
               />
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-muted-foreground">
                 <span className="flex items-center gap-1">
