@@ -145,7 +145,7 @@ function buildGraphData(
   }
 
   const uniqueNodes = Array.from(nodeMap.values());
-  const radius = 220;
+  const radius = Math.min(220, 80 + uniqueNodes.length * 20);
   const centerX = 0;
   const centerY = 0;
 
