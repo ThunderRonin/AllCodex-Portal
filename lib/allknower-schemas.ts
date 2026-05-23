@@ -240,6 +240,27 @@ export const BrainDumpAnyResultSchema = z.union([
   BrainDumpResultSchema,
 ]);
 
+export const GraphNodeSchema = z.object({
+  noteId: z.string(),
+  title: z.string(),
+  loreType: z.string(),
+  depth: z.number(),
+});
+
+export const GraphEdgeSchema = z.object({
+  sourceNoteId: z.string(),
+  targetNoteId: z.string(),
+  relationshipType: CanonicalRelationshipTypeSchema,
+});
+
+export const GraphResponseSchema = z.object({
+  nodes: z.array(GraphNodeSchema),
+  edges: z.array(GraphEdgeSchema),
+  centerNoteId: z.string(),
+  maxDepthReached: z.number(),
+  truncated: z.boolean(),
+});
+
 // Derived TypeScript types — replace manual interfaces in allknower-server.ts
 export type ConsistencyResult = z.infer<typeof ConsistencyResultSchema>;
 export type GapResult = z.infer<typeof GapResultSchema>;
@@ -264,3 +285,6 @@ export type BrainDumpReviewResult = z.infer<typeof BrainDumpReviewResultSchema>;
 export type BrainDumpInboxResult = z.infer<typeof BrainDumpInboxResultSchema>;
 export type BrainDumpAnyResult = z.infer<typeof BrainDumpAnyResultSchema>;
 export type ProposedEntity = z.infer<typeof ProposedEntitySchema>;
+export type GraphNode = z.infer<typeof GraphNodeSchema>;
+export type GraphEdge = z.infer<typeof GraphEdgeSchema>;
+export type GraphResponse = z.infer<typeof GraphResponseSchema>;

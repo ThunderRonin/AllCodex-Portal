@@ -16,10 +16,12 @@ import {
   BrainDumpResultSchema,
   ConsistencyResultSchema,
   GapResultSchema,
+  GraphResponseSchema,
   RelationshipsResultSchema,
   type ApplyRelationshipsResult,
   type ConsistencyResult,
   type GapResult,
+  type GraphResponse,
   type RelationshipsResult,
 } from "./allknower-schemas";
 
@@ -522,6 +524,39 @@ export async function suggestRelationships(creds: AkCreds, text: string, noteId?
   const parsed = RelationshipsResultSchema.safeParse(raw);
   if (!parsed.success) {
     console.error(`[suggestRelationships] AllKnower schema mismatch:`, parsed.error.message);
+    throw new ServiceError("SERVICE_ERROR", 502, "AllKnower returned an unexpected response format.");
+  }
+  return parsed.data;
+}
+
+/**
+ * Fetches a relationship graph rooted at the given note from AllKnower.
+ *
+ * @param noteId - The ID of the center note to build the graph around
+ * @param depth - How many hops to traverse from the center note (default: 2)
+ * @param maxNodes - Maximum number of nodes to include in the graph (default: 50)
+ * @returns A `GraphResponse` containing nodes, edges, and metadata about the graph
+ * @throws ServiceError with code `SERVICE_ERROR` if the response does not match the expected schema
+ */
+export async function getRelationshipGraph(
+  creds: AkCreds,
+  noteId: string,
+  depth = 2,
+  maxNodes = 50,
+): Promise<GraphResponse> {
+  const params = new URLSearchParams({
+    depth: String(depth),
+    maxNodes: String(maxNodes),
+  });
+  const res = await akFetch(
+    creds,
+    `/suggest/graph/${encodeURIComponent(noteId)}?${params}`,
+    { signal: AbortSignal.timeout(30_000) },
+  );
+  const raw = await res.json();
+  const parsed = GraphResponseSchema.safeParse(raw);
+  if (!parsed.success) {
+    console.error("[getRelationshipGraph] AllKnower schema mismatch:", parsed.error.message);
     throw new ServiceError("SERVICE_ERROR", 502, "AllKnower returned an unexpected response format.");
   }
   return parsed.data;
