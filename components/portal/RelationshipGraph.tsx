@@ -118,6 +118,34 @@ function suggestionKey(suggestion: Pick<Suggestion, "targetNoteId" | "relationsh
   return `${suggestion.targetNoteId}::${normalizeRelationshipType(suggestion.relationshipType)}`;
 }
 
+// ── Parallel edge offset assignment ──────────────────────────────────────────
+
+function assignParallelOffsets(edges: RFEdge[]): RFEdge[] {
+  const groups = new Map<string, number[]>();
+  edges.forEach((edge, i) => {
+    const pair = edge.source < edge.target
+      ? `${edge.source}||${edge.target}`
+      : `${edge.target}||${edge.source}`;
+    const list = groups.get(pair);
+    if (list) list.push(i);
+    else groups.set(pair, [i]);
+  });
+
+  const result = [...edges];
+  for (const indices of groups.values()) {
+    if (indices.length <= 1) continue;
+    for (let pos = 0; pos < indices.length; pos++) {
+      const idx = indices[pos];
+      result[idx] = {
+        ...edges[idx],
+        type: "offsetBezier",
+        data: { ...edges[idx].data, parallelIndex: pos, parallelCount: indices.length },
+      };
+    }
+  }
+  return result;
+}
+
 // ── Graph builders ───────────────────────────────────────────────────────────
 
 function buildGraphData(
@@ -213,7 +241,7 @@ function buildGraphData(
     };
   });
 
-  return { nodes: rfNodes, edges: rfEdges };
+  return { nodes: rfNodes, edges: assignParallelOffsets(rfEdges) };
 }
 
 function buildMultiHopGraphData(
@@ -332,7 +360,7 @@ function buildMultiHopGraphData(
     });
   }
 
-  return { nodes: rfNodes, edges: rfEdges };
+  return { nodes: rfNodes, edges: assignParallelOffsets(rfEdges) };
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────

@@ -11,6 +11,9 @@ import {
   Background,
   BackgroundVariant,
 } from "@xyflow/react";
+import { OffsetBezierEdge } from "./OffsetBezierEdge";
+
+const edgeTypes = { offsetBezier: OffsetBezierEdge };
 
 interface ReactFlowGraphProps {
   nodes: Node[];
@@ -36,6 +39,7 @@ export function ReactFlowGraph({
         edges={edges}
         onNodeClick={onNodeClick}
         onInit={onInit}
+        edgeTypes={edgeTypes}
         nodesDraggable={false}
         nodesConnectable={false}
         elementsSelectable={false}
