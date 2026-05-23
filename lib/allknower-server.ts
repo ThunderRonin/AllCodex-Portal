@@ -18,11 +18,13 @@ import {
   GapResultSchema,
   GraphResponseSchema,
   RelationshipsResultSchema,
+  RelationHistoryResponseSchema,
   type ApplyRelationshipsResult,
   type ConsistencyResult,
   type GapResult,
   type GraphResponse,
   type RelationshipsResult,
+  type RelationHistoryEntry,
 } from "./allknower-schemas";
 
 export interface AkCreds {
@@ -646,4 +648,31 @@ export interface ModelChainConfig {
 export async function getModelChains(creds: AkCreds): Promise<Record<string, ModelChainConfig>> {
   const res = await akFetch(creds, "/config/models");
   return res.json();
+}
+
+/**
+ * Fetches the relationship history for a given note from AllKnower.
+ *
+ * @param noteId - The ID of the note to fetch history for
+ * @param limit - Maximum number of entries to return (default: 20)
+ * @returns An object with `entries` array of relationship history records
+ * @throws ServiceError with code `SERVICE_ERROR` if the response does not match the expected schema
+ */
+export async function getRelationshipHistory(
+  creds: AkCreds,
+  noteId: string,
+  limit = 20,
+): Promise<{ entries: RelationHistoryEntry[] }> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  const res = await akFetch(
+    creds,
+    `/suggest/history/${encodeURIComponent(noteId)}?${params}`,
+  );
+  const raw = await res.json();
+  const parsed = RelationHistoryResponseSchema.safeParse(raw);
+  if (!parsed.success) {
+    console.error("[getRelationshipHistory] schema mismatch:", parsed.error.message);
+    throw new ServiceError("SERVICE_ERROR", 502, "AllKnower returned an unexpected response format.");
+  }
+  return parsed.data;
 }

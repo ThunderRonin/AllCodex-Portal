@@ -805,10 +805,72 @@ export function RelationshipGraph({ noteId, noteTitle }: RelationshipGraphProps)
                   })}
                 </div>
               )}
+              <RelationTimeline noteId={noteId} expanded={expanded} />
             </>
           )}
         </CardContent>
       )}
     </Card>
+  );
+}
+
+function RelationTimeline({ noteId, expanded }: { noteId: string; expanded: boolean }) {
+  const [showHistory, setShowHistory] = useState(false);
+  const { data: historyData } = useQuery<{ entries: Array<{
+    id: string;
+    sourceNoteId: string;
+    targetNoteId: string;
+    type: string;
+    description: string | null;
+    createdAt: string;
+  }> }>({
+    queryKey: ["relationship-history", noteId],
+    queryFn: () =>
+      fetch(`/api/lore/${noteId}/relationship-history`).then((r) => {
+        if (!r.ok) throw new Error("Failed to load history");
+        return r.json();
+      }),
+    enabled: expanded && showHistory,
+    staleTime: 60 * 1000,
+  });
+
+  return (
+    <div className="space-y-2">
+      <button
+        onClick={() => setShowHistory(!showHistory)}
+        className="text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground flex items-center gap-1 cursor-pointer"
+        style={{ fontFamily: "var(--font-cinzel)" }}
+      >
+        {showHistory ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        History
+      </button>
+      {showHistory && historyData?.entries && (
+        <div className="space-y-1 border-l border-border/40 pl-3 ml-1">
+          {historyData.entries.map((entry) => (
+            <div key={entry.id} className="text-[11px] text-muted-foreground">
+              <span className="text-foreground/70 capitalize">
+                {entry.type.replace(/_/g, " ")}
+              </span>
+              {" → "}
+              <Link
+                href={`/lore/${entry.sourceNoteId === noteId ? entry.targetNoteId : entry.sourceNoteId}`}
+                className="text-primary hover:underline"
+              >
+                {entry.sourceNoteId === noteId ? entry.targetNoteId : entry.sourceNoteId}
+              </Link>
+              {entry.description && (
+                <span className="italic"> — {entry.description}</span>
+              )}
+              <span className="text-muted-foreground/50 ml-1">
+                {new Date(entry.createdAt).toLocaleDateString()}
+              </span>
+            </div>
+          ))}
+          {historyData.entries.length === 0 && (
+            <p className="text-[11px] text-muted-foreground italic">No history yet.</p>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

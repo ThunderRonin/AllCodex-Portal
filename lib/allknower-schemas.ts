@@ -261,6 +261,20 @@ export const GraphResponseSchema = z.object({
   truncated: z.boolean(),
 });
 
+export const RelationHistoryEntrySchema = z.object({
+  id: z.string(),
+  sourceNoteId: z.string(),
+  targetNoteId: z.string(),
+  type: z.string(),
+  relationName: z.string().nullable(),
+  description: z.string().nullable(),
+  createdAt: z.string(),
+});
+
+export const RelationHistoryResponseSchema = z.object({
+  entries: z.array(RelationHistoryEntrySchema),
+});
+
 // Derived TypeScript types — replace manual interfaces in allknower-server.ts
 export type ConsistencyResult = z.infer<typeof ConsistencyResultSchema>;
 export type GapResult = z.infer<typeof GapResultSchema>;
@@ -288,3 +302,4 @@ export type ProposedEntity = z.infer<typeof ProposedEntitySchema>;
 export type GraphNode = z.infer<typeof GraphNodeSchema>;
 export type GraphEdge = z.infer<typeof GraphEdgeSchema>;
 export type GraphResponse = z.infer<typeof GraphResponseSchema>;
+export type RelationHistoryEntry = z.infer<typeof RelationHistoryEntrySchema>;
