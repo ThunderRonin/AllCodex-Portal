@@ -14,7 +14,7 @@ test.describe("Mobile Viewport Layouts", () => {
     await expect(sidebar).toBeHidden();
 
     // Hamburger button should be visible in the header
-    const menuButton = page.getByRole("button", { name: /toggle menu|menu/i });
+    const menuButton = page.getByRole("button", { name: /toggle sidebar/i });
     await expect(menuButton).toBeVisible();
 
     // Clicking it opens the mobile nav sheet
