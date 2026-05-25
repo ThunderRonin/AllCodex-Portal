@@ -334,9 +334,13 @@ export function ArticleCopilot() {
         }
       }
     } catch (error: any) {
-      setErrorService("AllKnower");
-      store.setLastError(error as { message: string });
-      useNotificationStore.getState().fail(watchId, { error: error.message || "Copilot failed." });
+      if (error.name === "AbortError") {
+        useNotificationStore.getState().dismiss(watchId);
+      } else {
+        setErrorService("AllKnower");
+        store.setLastError(error as { message: string });
+        useNotificationStore.getState().fail(watchId, { error: error.message || "Copilot failed." });
+      }
     } finally {
       setIsSending(false);
     }

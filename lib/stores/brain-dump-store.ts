@@ -256,7 +256,9 @@ export const useBrainDumpStore = create<BrainDumpState>()(
             }
           }
         } catch (err: any) {
-          if (err.name !== "AbortError") {
+          if (err.name === "AbortError") {
+            useNotificationStore.getState().dismiss(watchId);
+          } else {
             const errMsg = err instanceof Error ? err.message : "Stream failed";
             setStreamStatus({ stage: "error", message: errMsg });
             set({ streamError: errMsg });
