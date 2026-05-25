@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type { ProposedEntity } from "@/lib/allknower-server";
+import type { ProposedEntity } from "@/lib/allknower-schemas";
+import { useNotificationStore } from "@/lib/stores/notification-store";
 
 export type DumpMode = "auto" | "review" | "inbox";
 
@@ -31,6 +32,16 @@ interface BrainDumpState {
   reviewState: BrainDumpReviewState | null;
   inboxItems: string[];
   expandedIds: string[];
+  
+  // SSE Streaming State
+  isStreaming: boolean;
+  streamStatus: { stage: string; message: string } | null;
+  streamTokens: string;
+  streamError: string | null;
+  streamStartedAt: number | null;
+  streamTokenCount: number;
+  
+  // Actions
   setText: (text: string) => void;
   setDumpMode: (mode: DumpMode) => void;
   setSelectedModel: (model: string | null) => void;
@@ -40,12 +51,16 @@ interface BrainDumpState {
   addToInbox: (text: string) => void;
   removeFromInbox: (idx: number) => void;
   toggleExpanded: (id: string) => void;
-  streamStatus: { stage: string; message: string } | null;
-  streamTokens: string;
   setStreamStatus: (status: { stage: string; message: string } | null) => void;
   appendStreamToken: (token: string) => void;
   resetStream: () => void;
+  
+  // Streaming Actions
+  runStreamingIngestion: (rawText: string, model: string | null, queryClient?: any, runConsistencyCheck?: any) => Promise<void>;
+  cancelStreamingIngestion: () => void;
 }
+
+let activeAbortController: AbortController | null = null;
 
 export const useBrainDumpStore = create<BrainDumpState>()(
   persist(
@@ -57,6 +72,14 @@ export const useBrainDumpStore = create<BrainDumpState>()(
       reviewState: null,
       inboxItems: [],
       expandedIds: [],
+      
+      isStreaming: false,
+      streamStatus: null,
+      streamTokens: "",
+      streamError: null,
+      streamStartedAt: null,
+      streamTokenCount: 0,
+
       setText: (text) => set({ text }),
       setDumpMode: (dumpMode) => set({ dumpMode }),
       setSelectedModel: (selectedModel) => set({ selectedModel }),
@@ -86,11 +109,164 @@ export const useBrainDumpStore = create<BrainDumpState>()(
             : [...expandedIds, id],
         });
       },
-      streamStatus: null,
-      streamTokens: "",
+      
       setStreamStatus: (streamStatus) => set({ streamStatus }),
-      appendStreamToken: (token) => set((s) => ({ streamTokens: s.streamTokens + token })),
-      resetStream: () => set({ streamStatus: null, streamTokens: "" }),
+      appendStreamToken: (token) => set((s) => ({
+        streamTokens: s.streamTokens + token,
+        streamTokenCount: s.streamTokenCount + 1,
+      })),
+      resetStream: () => set({
+        streamStatus: null,
+        streamTokens: "",
+        streamError: null,
+        streamStartedAt: null,
+        streamTokenCount: 0,
+      }),
+
+      cancelStreamingIngestion: () => {
+        if (activeAbortController) {
+          activeAbortController.abort();
+          activeAbortController = null;
+        }
+        set({ isStreaming: false, streamStatus: null, streamStartedAt: null });
+        useNotificationStore.getState().addToast({
+          type: "info",
+          title: "Ingestion Cancelled",
+          message: "The brain dump ingestion was cancelled.",
+        });
+      },
+
+      runStreamingIngestion: async (rawText, model, queryClient, runConsistencyCheck) => {
+        const { resetStream, setStreamStatus, appendStreamToken, setResult, setText } = get();
+        resetStream();
+        set({ isStreaming: true, streamError: null, streamStartedAt: Date.now(), streamTokenCount: 0 });
+
+        if (activeAbortController) {
+          activeAbortController.abort();
+        }
+        const controller = new AbortController();
+        activeAbortController = controller;
+
+        try {
+          const res = await fetch("/api/brain-dump/stream", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rawText, ...(model && { model }) }),
+            signal: controller.signal,
+          });
+
+          if (!res.ok || !res.body) {
+            throw new Error(`Stream failed: ${res.status}`);
+          }
+
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+          let currentEvent = "message";
+
+          const processLine = (rawLine: string) => {
+            const line = rawLine.endsWith("\r") ? rawLine.slice(0, -1) : rawLine;
+            if (line.startsWith("event: ")) {
+              currentEvent = line.slice(7).trim();
+            } else if (line.startsWith("data: ")) {
+              let parsedData: any;
+              try {
+                parsedData = JSON.parse(line.slice(6));
+              } catch {
+                parsedData = line.slice(6);
+              }
+
+              if (currentEvent === "status") {
+                setStreamStatus(parsedData);
+              } else if (currentEvent === "token") {
+                appendStreamToken(parsedData.content);
+              } else if (currentEvent === "done") {
+                try {
+                  const parsed = JSON.parse(parsedData.raw);
+                  const normalized = {
+                    mode: "auto" as const,
+                    summary: parsed.summary,
+                    created: parsed.created ?? [],
+                    updated: parsed.updated ?? [],
+                    skipped: parsed.skipped ?? [],
+                    duplicates: parsed.duplicates,
+                  };
+                  setResult(normalized);
+                  setText("");
+
+                  if (queryClient) {
+                    void queryClient.invalidateQueries({ queryKey: ["brain-dump-history"] });
+                    void queryClient.invalidateQueries({ queryKey: ["lore"] });
+                  }
+
+                  const newNoteIds = [
+                    ...normalized.created.map((e: any) => e.noteId),
+                    ...normalized.updated.map((e: any) => e.noteId),
+                  ];
+                  if (runConsistencyCheck && newNoteIds.length > 0) {
+                    void runConsistencyCheck(newNoteIds);
+                  }
+
+                  useNotificationStore.getState().addToast({
+                    type: "success",
+                    title: "Ingestion Complete",
+                    message: `Created ${normalized.created.length} and updated ${normalized.updated.length} lore entries.`,
+                  });
+                } catch (err) {
+                  console.error("[brain-dump-store] failed to parse done payload", err);
+                }
+              } else if (currentEvent === "error") {
+                setStreamStatus({ stage: "error", message: parsedData.error });
+                set({ streamError: parsedData.error });
+                useNotificationStore.getState().addToast({
+                  type: "error",
+                  title: "Ingestion Failed",
+                  message: parsedData.error,
+                });
+              }
+
+              currentEvent = "message";
+            } else if (line === "") {
+              currentEvent = "message";
+            }
+          };
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+              buffer += decoder.decode();
+              if (buffer.length > 0) {
+                for (const line of buffer.split("\n")) {
+                  processLine(line);
+                }
+              }
+              break;
+            }
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() ?? "";
+
+            for (const line of lines) {
+              processLine(line);
+            }
+          }
+        } catch (err: any) {
+          if (err.name !== "AbortError") {
+            const errMsg = err instanceof Error ? err.message : "Stream failed";
+            setStreamStatus({ stage: "error", message: errMsg });
+            set({ streamError: errMsg });
+            useNotificationStore.getState().addToast({
+              type: "error",
+              title: "Ingestion Failed",
+              message: errMsg,
+            });
+          }
+        } finally {
+          set({ isStreaming: false });
+          activeAbortController = null;
+        }
+      },
     }),
     {
       name: "brain-dump-ui",
@@ -104,4 +280,3 @@ export const useBrainDumpStore = create<BrainDumpState>()(
     }
   )
 );
-
