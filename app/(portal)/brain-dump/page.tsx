@@ -240,6 +240,9 @@ export default function BrainDumpPage() {
   } = useBrainDumpStore();
   const queryClient = useQueryClient();
   
+  const dumpWatchIdRef = useRef<string | null>(null);
+  const commitWatchIdRef = useRef<string | null>(null);
+
   const streamTokens = useBrainDumpStore((s) => s.streamTokens);
   const { completed: streamingEntities, partial: partialStreamingEntity } = parseStreamingEntities(streamTokens);
   const streamPreviewVisible =
@@ -341,7 +344,24 @@ export default function BrainDumpPage() {
       if (!r.ok) throw await r.json();
       return r.json() as Promise<BrainDumpAnyResult>;
     },
+    onMutate: () => {
+      const watchId = "brain-dump-" + Date.now();
+      dumpWatchIdRef.current = watchId;
+      useNotificationStore.getState().watch({
+        id: watchId,
+        kind: "brain-dump",
+        title: "Brain Dump",
+        href: "/brain-dump",
+      });
+    },
     onSuccess: (data) => {
+      const watchId = dumpWatchIdRef.current;
+      if (watchId) {
+        useNotificationStore.getState().complete(watchId, {
+          summary: data.mode === "review" ? "Prepared proposals." : "Created and updated lore entries.",
+          href: "/brain-dump",
+        });
+      }
       if (data.mode === "review") {
         const rd = data as BrainDumpReviewResult;
         setReviewState({
@@ -365,6 +385,14 @@ export default function BrainDumpPage() {
         void runConsistencyCheck(newNoteIds);
       }
     },
+    onError: (err: any) => {
+      const watchId = dumpWatchIdRef.current;
+      if (watchId) {
+        useNotificationStore.getState().fail(watchId, {
+          error: err.message || "Operation failed.",
+        });
+      }
+    },
   });
 
   const { mutate: commitReview, isPending: isCommitting } = useMutation({
@@ -377,12 +405,37 @@ export default function BrainDumpPage() {
       if (!r.ok) throw await r.json();
       return r.json() as Promise<BrainDumpResult>;
     },
+    onMutate: () => {
+      const watchId = "commit-review-" + Date.now();
+      commitWatchIdRef.current = watchId;
+      useNotificationStore.getState().watch({
+        id: watchId,
+        kind: "review-commit",
+        title: "Commit Review",
+        href: "/brain-dump",
+      });
+    },
     onSuccess: (data) => {
+      const watchId = commitWatchIdRef.current;
+      if (watchId) {
+        useNotificationStore.getState().complete(watchId, {
+          summary: "Committed changes to AllCodex.",
+          href: "/brain-dump",
+        });
+      }
       const normalized = normalizeResult(data);
       setResult(normalized);
       setReviewState(null);
       void queryClient.invalidateQueries({ queryKey: ["brain-dump-history"] });
       void queryClient.invalidateQueries({ queryKey: ["lore"] });
+    },
+    onError: (err: any) => {
+      const watchId = commitWatchIdRef.current;
+      if (watchId) {
+        useNotificationStore.getState().fail(watchId, {
+          error: err.message || "Failed to commit.",
+        });
+      }
     },
   });
 
@@ -459,59 +512,73 @@ export default function BrainDumpPage() {
   };
 
   const runBulkProcessing = async () => {
+    const watchId = "bulk-dump-" + Date.now();
+    useNotificationStore.getState().watch({
+      id: watchId,
+      kind: "bulk-dump",
+      title: "Bulk Ingestion",
+      href: "/brain-dump",
+    });
     setIsBulkProcessing(true);
     
-    for (let i = 0; i < bulkFiles.length; i++) {
-      if (bulkFiles[i].status !== "pending") continue;
-      
-      setCurrentBulkIndex(i);
-      setBulkFiles(prev => {
-        const copy = [...prev];
-        copy[i].status = "processing";
-        return copy;
-      });
-      
-      try {
-        const res = await fetch("/api/brain-dump", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            rawText: bulkFiles[i].content, 
-            mode: "auto", 
-            ...(selectedModel && { model: selectedModel }) 
-          }),
+    try {
+      for (let i = 0; i < bulkFiles.length; i++) {
+        if (bulkFiles[i].status !== "pending") continue;
+        
+        setCurrentBulkIndex(i);
+        setBulkFiles(prev => {
+          const copy = [...prev];
+          copy[i].status = "processing";
+          return copy;
         });
         
-        if (!res.ok) {
-          throw new Error(`Failed with status: ${res.status}`);
+        try {
+          const res = await fetch("/api/brain-dump", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              rawText: bulkFiles[i].content, 
+              mode: "auto", 
+              ...(selectedModel && { model: selectedModel }) 
+            }),
+          });
+          
+          if (!res.ok) {
+            throw new Error(`Failed with status: ${res.status}`);
+          }
+          
+          setBulkFiles(prev => {
+            const copy = [...prev];
+            copy[i].status = "success";
+            return copy;
+          });
+        } catch (err: any) {
+          setBulkFiles(prev => {
+            const copy = [...prev];
+            copy[i].status = "error";
+            copy[i].error = err.message || String(err);
+            return copy;
+          });
         }
-        
-        setBulkFiles(prev => {
-          const copy = [...prev];
-          copy[i].status = "success";
-          return copy;
-        });
-      } catch (err: any) {
-        setBulkFiles(prev => {
-          const copy = [...prev];
-          copy[i].status = "error";
-          copy[i].error = err.message || String(err);
-          return copy;
-        });
       }
+      
+      setIsBulkProcessing(false);
+      setCurrentBulkIndex(-1);
+      
+      void queryClient.invalidateQueries({ queryKey: ["brain-dump-history"] });
+      void queryClient.invalidateQueries({ queryKey: ["lore"] });
+      
+      useNotificationStore.getState().complete(watchId, {
+        summary: "Finished processing bulk queue.",
+        href: "/brain-dump",
+      });
+    } catch (err) {
+      setIsBulkProcessing(false);
+      setCurrentBulkIndex(-1);
+      useNotificationStore.getState().fail(watchId, {
+        error: "Bulk queue failed.",
+      });
     }
-    
-    setIsBulkProcessing(false);
-    setCurrentBulkIndex(-1);
-    
-    void queryClient.invalidateQueries({ queryKey: ["brain-dump-history"] });
-    void queryClient.invalidateQueries({ queryKey: ["lore"] });
-    
-    useNotificationStore.getState().addToast({
-      type: "success",
-      title: "Bulk Ingestion Finished",
-      message: "Completed processing the bulk queue.",
-    });
   };
 
   /**

@@ -22,6 +22,7 @@ import { useSSEStream } from "@/hooks/use-sse-stream";
 import { fetchJsonOrThrow } from "@/lib/fetch-json";
 import { sanitizeLoreHtml } from "@/lib/sanitize";
 import { useCopilotStore } from "@/lib/stores/copilot-store";
+import { useNotificationStore } from "@/lib/stores/notification-store";
 import type { CopilotApplyResult, CopilotChatResponse, CopilotProposalTarget } from "@/lib/allknower-schemas";
 
 type ExistingTargetSnapshot = {
@@ -290,6 +291,14 @@ export function ArticleCopilot() {
       setDraft("");
     }
 
+    const watchId = "copilot-" + Date.now();
+    useNotificationStore.getState().watch({
+      id: watchId,
+      kind: "copilot-turn",
+      title: "Copilot Chat",
+      href: window.location.pathname,
+    });
+
     const currentMessages = useCopilotStore.getState().conversations[noteId]?.messages || [];
     const nextMessages = [...currentMessages, { role: "user" as const, content }];
 
@@ -315,16 +324,19 @@ export function ArticleCopilot() {
           setLastResponse(response);
           setIsRedirecting(false);
           setRedirectDraft("");
+          useNotificationStore.getState().complete(watchId, { summary: "Assistant replied." });
         } else if (event.event === "error") {
           const errData = event.data as { error: string };
           store.updateLastMessage(noteId, `Error: ${errData.error}`);
           setErrorService("AllKnower");
           store.setLastError({ message: errData.error });
+          useNotificationStore.getState().fail(watchId, { error: errData.error || "Copilot failed." });
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       setErrorService("AllKnower");
       store.setLastError(error as { message: string });
+      useNotificationStore.getState().fail(watchId, { error: error.message || "Copilot failed." });
     } finally {
       setIsSending(false);
     }
@@ -341,6 +353,14 @@ export function ArticleCopilot() {
 
   async function applySelectedChanges() {
     if (!pendingProposal || selectedTargetIds.length === 0 || isApplying || !noteId) return;
+
+    const watchId = "copilot-apply-" + Date.now();
+    useNotificationStore.getState().watch({
+      id: watchId,
+      kind: "review-commit",
+      title: "Apply Proposal",
+      href: window.location.pathname,
+    });
 
     setIsApplying(true);
     store.setLastError(null);
@@ -372,9 +392,12 @@ export function ArticleCopilot() {
         void queryClient.invalidateQueries({ queryKey: ["backlinks", touchedNoteId] });
       }
       void queryClient.invalidateQueries({ queryKey: ["lore"] });
-    } catch (error) {
+
+      useNotificationStore.getState().complete(watchId, { summary: "Applied changes to AllCodex." });
+    } catch (error: any) {
       setErrorService("AllCodex");
       store.setLastError(error as { message: string });
+      useNotificationStore.getState().fail(watchId, { error: error.message || "Apply failed." });
     } finally {
       setIsApplying(false);
     }

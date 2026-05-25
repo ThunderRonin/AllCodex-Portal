@@ -141,6 +141,14 @@ export const useBrainDumpStore = create<BrainDumpState>()(
         resetStream();
         set({ isStreaming: true, streamError: null, streamStartedAt: Date.now(), streamTokenCount: 0 });
 
+        const watchId = "brain-dump-" + Date.now();
+        useNotificationStore.getState().watch({
+          id: watchId,
+          kind: "brain-dump",
+          title: "Brain Dump",
+          href: "/brain-dump",
+        });
+
         if (activeAbortController) {
           activeAbortController.abort();
         }
@@ -207,22 +215,18 @@ export const useBrainDumpStore = create<BrainDumpState>()(
                     void runConsistencyCheck(newNoteIds);
                   }
 
-                  useNotificationStore.getState().addToast({
-                    type: "success",
-                    title: "Ingestion Complete",
-                    message: `Created ${normalized.created.length} and updated ${normalized.updated.length} lore entries.`,
+                  useNotificationStore.getState().complete(watchId, {
+                    summary: "Created " + normalized.created.length + ", updated " + normalized.updated.length + " lore entries.",
+                    href: "/brain-dump",
                   });
                 } catch (err) {
                   console.error("[brain-dump-store] failed to parse done payload", err);
                 }
               } else if (currentEvent === "error") {
-                setStreamStatus({ stage: "error", message: parsedData.error });
-                set({ streamError: parsedData.error });
-                useNotificationStore.getState().addToast({
-                  type: "error",
-                  title: "Ingestion Failed",
-                  message: parsedData.error,
-                });
+                const errMsg = parsedData.error || "Ingestion failed";
+                setStreamStatus({ stage: "error", message: errMsg });
+                set({ streamError: errMsg });
+                useNotificationStore.getState().fail(watchId, { error: errMsg });
               }
 
               currentEvent = "message";
@@ -256,11 +260,7 @@ export const useBrainDumpStore = create<BrainDumpState>()(
             const errMsg = err instanceof Error ? err.message : "Stream failed";
             setStreamStatus({ stage: "error", message: errMsg });
             set({ streamError: errMsg });
-            useNotificationStore.getState().addToast({
-              type: "error",
-              title: "Ingestion Failed",
-              message: errMsg,
-            });
+            useNotificationStore.getState().fail(watchId, { error: errMsg });
           }
         } finally {
           set({ isStreaming: false });
