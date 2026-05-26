@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Bell, CheckCircle, XCircle, Clock, X, Trash2, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -44,45 +44,63 @@ function elapsed(ts: number) {
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const notifications = useNotificationStore((s) => s.notifications);
   const dismiss = useNotificationStore((s) => s.dismiss);
   const dismissAll = useNotificationStore((s) => s.dismissAll);
+
   const pendingCount = notifications.filter((n) => n.status === "pending").length;
   const sorted = [...notifications].sort((a, b) => b.createdAt - a.createdAt);
+
+  const showBadge = mounted && pendingCount > 0;
+  const displayNotifications = mounted ? sorted : [];
 
   return (
     <>
       <button
         onClick={() => setOpen(true)}
-        aria-label={`Notifications${pendingCount > 0 ? ` (${pendingCount} pending)` : ""}`}
+        aria-label={`Notifications${showBadge ? ` (${pendingCount} pending)` : ""}`}
         className="relative p-1.5 rounded-sm hover:bg-muted/20 transition-colors cursor-pointer"
       >
         <Bell className="h-4 w-4 text-muted-foreground" />
-        {pendingCount > 0 && (
+        {showBadge && (
           <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-primary text-[9px] font-bold text-primary-foreground flex items-center justify-center">
             {pendingCount > 9 ? "9+" : pendingCount}
           </span>
         )}
       </button>
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="right" className="w-80 rounded-none border-l border-border/40 bg-card p-0">
+        <SheetContent side="right" className="w-80 rounded-none border-l border-border/45 bg-card/90 backdrop-blur-md p-0 shadow-2xl">
           <SheetHeader className="px-4 py-3 border-b border-border/30 flex-row items-center justify-between space-y-0">
-            <SheetTitle className="text-xs font-semibold uppercase tracking-wider text-primary">Operations</SheetTitle>
-            {notifications.length > 0 && (
+            <SheetTitle 
+              className="text-xs font-semibold uppercase tracking-wider text-primary"
+              style={{ fontFamily: "var(--font-cinzel)" }}
+            >
+              Operations
+            </SheetTitle>
+            {mounted && notifications.length > 0 && (
               <Button variant="ghost" size="sm" onClick={dismissAll} className="h-6 text-[10px] gap-1 cursor-pointer">
                 <Trash2 className="h-3 w-3" /> Clear all
               </Button>
             )}
           </SheetHeader>
           <div className="flex flex-col overflow-y-auto max-h-[calc(100vh-60px)]">
-            {sorted.length === 0 ? (
+            {!mounted || displayNotifications.length === 0 ? (
               <p className="text-xs text-muted-foreground/60 italic p-4 text-center">No operations in progress.</p>
             ) : (
-              sorted.map((n) => (
+              displayNotifications.map((n) => (
                 <div key={n.id} className="flex items-start gap-3 p-3 border-b border-border/20 hover:bg-muted/10 group">
                   <StatusIcon status={n.status} />
                   <div className="flex-1 min-w-0">
-                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground/50">
+                    <span 
+                      className="text-[10px] uppercase tracking-wider text-muted-foreground/50"
+                      style={{ fontFamily: "var(--font-cinzel)" }}
+                    >
                       {KIND_LABELS[n.kind]}
                     </span>
                     <p className="text-xs font-medium truncate">{n.title}</p>
