@@ -34,6 +34,12 @@ import {
   type BrainDumpBatch,
   type BrainDumpBatchSubmitResult,
   type BrainDumpDiffsResponse,
+  UsageSummarySchema,
+  UserBudgetSchema,
+  UsageAlertStatusSchema,
+  type UsageSummary,
+  type UserBudget,
+  type UsageAlertStatus,
 } from "./allknower-schemas";
 
 export interface AkCreds {
@@ -763,6 +769,59 @@ export async function getBrainDumpDiffs(creds: AkCreds, historyId: string): Prom
   const parsed = BrainDumpDiffsResponseSchema.safeParse(raw);
   if (!parsed.success) {
     console.error("[getBrainDumpDiffs] AllKnower schema mismatch:", parsed.error.message);
+    throw new ServiceError("SERVICE_ERROR", 502, "AllKnower returned an unexpected response format.");
+  }
+  return parsed.data;
+}
+
+// ── Usage / Observability ─────────────────────────────────────────────────────
+
+export async function getUsageSummary(
+  creds: AkCreds,
+  from?: string,
+  to?: string,
+): Promise<UsageSummary> {
+  const params = new URLSearchParams();
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  const qs = params.toString();
+  const res = await akFetch(creds, `/usage/summary${qs ? `?${qs}` : ""}`);
+  const raw = await res.json();
+  const parsed = UsageSummarySchema.safeParse(raw);
+  if (!parsed.success) {
+    console.error("[getUsageSummary] AllKnower schema mismatch:", parsed.error.message);
+    throw new ServiceError("SERVICE_ERROR", 502, "AllKnower returned an unexpected response format.");
+  }
+  return parsed.data;
+}
+
+export async function getUserBudget(creds: AkCreds): Promise<UserBudget> {
+  const res = await akFetch(creds, "/usage/budgets");
+  const raw = await res.json();
+  const parsed = UserBudgetSchema.safeParse(raw);
+  if (!parsed.success) {
+    console.error("[getUserBudget] AllKnower schema mismatch:", parsed.error.message);
+    throw new ServiceError("SERVICE_ERROR", 502, "AllKnower returned an unexpected response format.");
+  }
+  return parsed.data;
+}
+
+export async function putUserBudget(
+  creds: AkCreds,
+  budget: { dailyBudgetUsd?: number | null; monthlyBudgetUsd?: number | null; alertEmail?: string | null },
+): Promise<void> {
+  await akFetch(creds, "/usage/budgets", {
+    method: "PUT",
+    body: JSON.stringify(budget),
+  });
+}
+
+export async function getUsageAlertStatus(creds: AkCreds): Promise<UsageAlertStatus> {
+  const res = await akFetch(creds, "/usage/alert-status");
+  const raw = await res.json();
+  const parsed = UsageAlertStatusSchema.safeParse(raw);
+  if (!parsed.success) {
+    console.error("[getUsageAlertStatus] AllKnower schema mismatch:", parsed.error.message);
     throw new ServiceError("SERVICE_ERROR", 502, "AllKnower returned an unexpected response format.");
   }
   return parsed.data;

@@ -409,3 +409,71 @@ export const BrainDumpDiffsResponseSchema = z.object({
 
 export type BrainDumpDiff = z.infer<typeof BrainDumpDiffSchema>;
 export type BrainDumpDiffsResponse = z.infer<typeof BrainDumpDiffsResponseSchema>;
+
+// ── Usage / Observability ────────────────────────────────────────────────────
+
+export const UsageDailyBurnEntrySchema = z.object({
+  date: z.string(),
+  tokens: z.number(),
+  cost: z.number(),
+  count: z.number(),
+});
+
+export const UsageTaskCostEntrySchema = z.object({
+  task: z.string(),
+  tokens: z.number(),
+  cost: z.number(),
+  count: z.number(),
+  avgLatency: z.number(),
+});
+
+export const UsageModelDistEntrySchema = z.object({
+  model: z.string(),
+  tokens: z.number(),
+  cost: z.number(),
+  count: z.number(),
+});
+
+export const UsageLatencyStatEntrySchema = z.object({
+  task: z.string(),
+  model: z.string(),
+  count: z.number(),
+  avg: z.number(),
+  p50: z.number(),
+  p90: z.number(),
+  p95: z.number(),
+  p99: z.number(),
+});
+
+export const UsageSummarySchema = z.object({
+  summary: z.object({
+    totalTokens: z.number(),
+    totalRequests: z.number(),
+    avgLatency: z.number(),
+    totalCostUsd: z.number(),
+  }),
+  dailyBurn: z.array(UsageDailyBurnEntrySchema),
+  taskCosts: z.array(UsageTaskCostEntrySchema),
+  modelDistribution: z.array(UsageModelDistEntrySchema),
+  latencyStats: z.array(UsageLatencyStatEntrySchema),
+});
+
+export const UserBudgetSchema = z.object({
+  dailyBudgetUsd: z.number().nullable(),
+  monthlyBudgetUsd: z.number().nullable(),
+  alertEmail: z.string().nullable(),
+});
+
+export const UsageAlertStatusSchema = z.object({
+  configured: z.boolean(),
+  dailySpendUsd: z.number(),
+  monthlySpendUsd: z.number(),
+  dailyBudgetUsd: z.number().nullable(),
+  monthlyBudgetUsd: z.number().nullable(),
+  dailyOverBudget: z.boolean(),
+  monthlyOverBudget: z.boolean(),
+});
+
+export type UsageSummary = z.infer<typeof UsageSummarySchema>;
+export type UserBudget = z.infer<typeof UserBudgetSchema>;
+export type UsageAlertStatus = z.infer<typeof UsageAlertStatusSchema>;

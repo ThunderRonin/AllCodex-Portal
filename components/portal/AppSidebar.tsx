@@ -29,7 +29,7 @@ import {
   Scroll,
   Globe,
   Plus,
-  Activity,
+  BarChart2,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -70,7 +70,7 @@ const navItems = [
   {
     label: "System",
     items: [
-      { href: "/observability", icon: Activity, label: "Observability" },
+      { href: "/usage", icon: BarChart2, label: "Usage" },
       { href: "/import", icon: Upload, label: "Import" },
       { href: "/shared", icon: Globe, label: "Shared Content" },
       { href: "/settings", icon: Settings, label: "Settings" },
