@@ -5,6 +5,7 @@
  */
 
 import DOMPurify from "isomorphic-dompurify";
+import { parseStreamingEntities } from "./parse-streaming-entities";
 
 const ALLOWED_TAGS = [
   "a", "abbr", "b", "blockquote", "br", "caption", "cite", "code", "col",
@@ -59,3 +60,11 @@ export function sanitizePlayerView(html: string): string {
 
   return body.innerHTML;
 }
+
+export type { StreamingEntity as ProposedEntity } from "./parse-streaming-entities";
+
+export function parsePartialEntities(jsonStr: string) {
+  return parseStreamingEntities(jsonStr).completed;
+}
+
+export { parseStreamingEntities } from "./parse-streaming-entities";

@@ -411,6 +411,20 @@ export async function installPortalApiMocks(page: Page, options: PortalMockOptio
     orderedNoteIds.push(note.noteId);
   }
 
+  for (const note of questsNotes) {
+    if (!notes.has(note.noteId)) {
+      notes.set(note.noteId, structuredClone(note));
+      orderedNoteIds.push(note.noteId);
+    }
+  }
+
+  for (const note of statblocksNotes) {
+    if (!notes.has(note.noteId)) {
+      notes.set(note.noteId, structuredClone(note));
+      orderedNoteIds.push(note.noteId);
+    }
+  }
+
   await page.route("**/api/config/portal", async (route) => {
     await fulfillJson(route, { loreRootNoteId: "root" });
   });
@@ -744,7 +758,14 @@ export async function installPortalApiMocks(page: Page, options: PortalMockOptio
   });
 
   await page.route("**/api/statblocks", async (route) => {
-    await fulfillJson(route, statblocksNotes.map((note) => serializeNote(note, notes)));
+    const list = Array.from(notes.values()).filter((note) =>
+      note.attributes.some(
+        (attr) =>
+          attr.name === "statblock" ||
+          (attr.name === "loreType" && attr.value === "statblock")
+      )
+    );
+    await fulfillJson(route, list.map((note) => serializeNote(note, notes)));
   });
 
   await page.route("**/api/config/status**", async (route) => {
