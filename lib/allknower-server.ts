@@ -25,6 +25,9 @@ import {
   type GraphResponse,
   type RelationshipsResult,
   type RelationHistoryEntry,
+  MetricsLLMResultSchema,
+  type MetricsLLMResult,
+  type PushSubscriptionPayload,
 } from "./allknower-schemas";
 
 export interface AkCreds {
@@ -676,3 +679,37 @@ export async function getRelationshipHistory(
   }
   return parsed.data;
 }
+
+/**
+ * Fetches LLM call and token metrics from AllKnower.
+ */
+export async function getMetricsLLM(creds: AkCreds): Promise<MetricsLLMResult> {
+  const res = await akFetch(creds, "/metrics/llm");
+  const raw = await res.json();
+  const parsed = MetricsLLMResultSchema.safeParse(raw);
+  if (!parsed.success) {
+    console.error("[getMetricsLLM] AllKnower schema mismatch:", parsed.error.message);
+    throw new ServiceError("SERVICE_ERROR", 502, "AllKnower returned an unexpected response format.");
+  }
+  return parsed.data;
+}
+
+export async function subscribeNotifications(
+  creds: AkCreds,
+  subscription: PushSubscriptionPayload,
+): Promise<{ ok: boolean }> {
+  const res = await akFetch(creds, "/notifications/subscribe", {
+    method: "POST",
+    body: JSON.stringify(subscription),
+  });
+  return res.json();
+}
+
+export async function unsubscribeNotifications(creds: AkCreds, endpoint: string): Promise<{ ok: boolean }> {
+  const res = await akFetch(creds, "/notifications/unsubscribe", {
+    method: "DELETE",
+    body: JSON.stringify({ endpoint }),
+  });
+  return res.json();
+}
+

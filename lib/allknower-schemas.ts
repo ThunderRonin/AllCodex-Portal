@@ -303,3 +303,60 @@ export type GraphNode = z.infer<typeof GraphNodeSchema>;
 export type GraphEdge = z.infer<typeof GraphEdgeSchema>;
 export type GraphResponse = z.infer<typeof GraphResponseSchema>;
 export type RelationHistoryEntry = z.infer<typeof RelationHistoryEntrySchema>;
+
+// ── Metrics / Observability ──────────────────────────────────────────────────
+
+export const DailyBurnEntrySchema = z.object({
+  date: z.string(),
+  tokens: z.number(),
+  count: z.number(),
+});
+
+export const TaskCostEntrySchema = z.object({
+  task: z.string(),
+  tokens: z.number(),
+  count: z.number(),
+  avgLatency: z.number(),
+});
+
+export const ModelDistEntrySchema = z.object({
+  model: z.string(),
+  tokens: z.number(),
+  count: z.number(),
+});
+
+export const LatencyStatEntrySchema = z.object({
+  task: z.string(),
+  model: z.string(),
+  count: z.number(),
+  avg: z.number(),
+  p50: z.number(),
+  p90: z.number(),
+  p95: z.number(),
+});
+
+export const MetricsLLMResultSchema = z.object({
+  summary: z.object({
+    totalTokens: z.number(),
+    totalRequests: z.number(),
+    avgLatency: z.number(),
+  }),
+  dailyBurn: z.array(DailyBurnEntrySchema),
+  taskCosts: z.array(TaskCostEntrySchema),
+  modelDistribution: z.array(ModelDistEntrySchema),
+  latencyStats: z.array(LatencyStatEntrySchema),
+});
+
+export type MetricsLLMResult = z.infer<typeof MetricsLLMResultSchema>;
+
+// ── Push Notifications ───────────────────────────────────────────────────────
+
+export const PushSubscriptionPayloadSchema = z.object({
+  endpoint: z.string().min(1),
+  keys: z.object({
+    p256dh: z.string().min(1),
+    auth: z.string().min(1),
+  }),
+});
+
+export type PushSubscriptionPayload = z.infer<typeof PushSubscriptionPayloadSchema>;
