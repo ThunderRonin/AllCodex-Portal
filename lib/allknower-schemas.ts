@@ -360,3 +360,34 @@ export const PushSubscriptionPayloadSchema = z.object({
 });
 
 export type PushSubscriptionPayload = z.infer<typeof PushSubscriptionPayloadSchema>;
+
+// ── Bulk Brain Dump ─────────────────────────────────────────────────────────
+
+export const BrainDumpJobSchema = z.object({
+  id: z.string(),
+  batchId: z.string(),
+  position: z.number(),
+  status: z.enum(["queued", "running", "done", "failed", "cancelled"]),
+  rawText: z.string(),
+  error: z.string().nullable(),
+  resultHistoryId: z.string().nullable(),
+  createdAt: z.string(),
+  startedAt: z.string().nullable(),
+  finishedAt: z.string().nullable(),
+});
+
+export const BrainDumpBatchSchema = z.object({
+  batchId: z.string(),
+  jobs: z.array(BrainDumpJobSchema),
+  counts: z.record(z.string(), z.number()),
+  terminal: z.boolean(),
+});
+
+export const BrainDumpBatchSubmitResultSchema = z.object({
+  batchId: z.string(),
+  jobs: z.array(z.object({ id: z.string(), position: z.number() })),
+});
+
+export type BrainDumpJob = z.infer<typeof BrainDumpJobSchema>;
+export type BrainDumpBatch = z.infer<typeof BrainDumpBatchSchema>;
+export type BrainDumpBatchSubmitResult = z.infer<typeof BrainDumpBatchSubmitResultSchema>;

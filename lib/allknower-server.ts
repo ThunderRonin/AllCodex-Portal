@@ -28,6 +28,10 @@ import {
   MetricsLLMResultSchema,
   type MetricsLLMResult,
   type PushSubscriptionPayload,
+  BrainDumpBatchSchema,
+  BrainDumpBatchSubmitResultSchema,
+  type BrainDumpBatch,
+  type BrainDumpBatchSubmitResult,
 } from "./allknower-schemas";
 
 export interface AkCreds {
@@ -710,6 +714,42 @@ export async function unsubscribeNotifications(creds: AkCreds, endpoint: string)
     method: "DELETE",
     body: JSON.stringify({ endpoint }),
   });
+  return res.json();
+}
+
+// ── Bulk Brain Dump ─────────────────────────────────────────────────────────
+
+export async function submitBrainDumpBatch(
+  creds: AkCreds,
+  items: Array<{ rawText: string; parentNoteId?: string; mode?: "auto" | "review" }>,
+): Promise<BrainDumpBatchSubmitResult> {
+  const res = await akFetch(creds, "/brain-dump/batch", {
+    method: "POST",
+    body: JSON.stringify({ items }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  const raw = await res.json();
+  const parsed = BrainDumpBatchSubmitResultSchema.safeParse(raw);
+  if (!parsed.success) {
+    console.error("[submitBrainDumpBatch] AllKnower schema mismatch:", parsed.error.message);
+    throw new ServiceError("SERVICE_ERROR", 502, "AllKnower returned an unexpected response format.");
+  }
+  return parsed.data;
+}
+
+export async function getBrainDumpBatch(creds: AkCreds, batchId: string): Promise<BrainDumpBatch> {
+  const res = await akFetch(creds, `/brain-dump/batch/${batchId}`);
+  const raw = await res.json();
+  const parsed = BrainDumpBatchSchema.safeParse(raw);
+  if (!parsed.success) {
+    console.error("[getBrainDumpBatch] AllKnower schema mismatch:", parsed.error.message);
+    throw new ServiceError("SERVICE_ERROR", 502, "AllKnower returned an unexpected response format.");
+  }
+  return parsed.data;
+}
+
+export async function cancelBrainDumpBatch(creds: AkCreds, batchId: string): Promise<{ cancelled: number }> {
+  const res = await akFetch(creds, `/brain-dump/batch/${batchId}`, { method: "DELETE" });
   return res.json();
 }
 

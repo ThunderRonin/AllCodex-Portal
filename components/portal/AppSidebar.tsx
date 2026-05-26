@@ -29,6 +29,7 @@ import {
   Scroll,
   Globe,
   Plus,
+  Activity,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -46,6 +47,7 @@ const navItems = [
     label: "Studio",
     items: [
       { href: "/brain-dump", icon: Brain, label: "Brain Dump" },
+      { href: "/brain-dump/bulk", icon: Upload, label: "Bulk Queue" },
     ],
   },
   {
@@ -68,6 +70,7 @@ const navItems = [
   {
     label: "System",
     items: [
+      { href: "/observability", icon: Activity, label: "Observability" },
       { href: "/import", icon: Upload, label: "Import" },
       { href: "/shared", icon: Globe, label: "Shared Content" },
       { href: "/settings", icon: Settings, label: "Settings" },
