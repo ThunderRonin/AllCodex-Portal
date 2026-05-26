@@ -24,6 +24,12 @@ import {
   Shield,
   BookOpen,
   Map,
+  History,
+  GitCompareArrows,
+  FileText,
+  Code2,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { RelationshipGraph } from "@/components/portal/RelationshipGraph";
 import { MapSection } from "@/components/portal/MapSection";
@@ -35,10 +41,11 @@ import { CopilotTrigger } from "@/components/portal/CopilotTrigger";
 import { PreviewToggle, type PreviewMode } from "@/components/portal/PreviewToggle";
 import Link from "next/link";
 import Image from "next/image";
-import { use, useRef, useState } from "react";
+import { use, useRef, useState, useMemo } from "react";
 import { sanitizeLoreHtml } from "@/lib/sanitize";
 import { parseThemeSongUrl } from "@/lib/theme-song";
 import { cn } from "@/lib/utils";
+import { computeLineDiff, htmlToPlain } from "@/components/portal/diff-helpers";
 
 interface Attribute {
   attributeId: string;
@@ -267,6 +274,230 @@ function RelatedEntryCard({ entry }: { entry: { noteId: string; title: string; l
         <div className="wiki-related-underline" />
       </div>
     </NotePreviewLink>
+  );
+}
+
+interface Revision {
+  revisionId: string;
+  noteId: string;
+  type: string;
+  title: string;
+  dateCreated: string;
+  utcDateCreated: string;
+  contentLength?: number;
+  description: string;
+  revisionSource: string;
+}
+
+function RevisionDiffView({ noteId, revA, revB }: { noteId: string; revA: Revision; revB: Revision }) {
+  const [diffMode, setDiffMode] = useState<"visual" | "raw">("visual");
+
+  const { data: contentA } = useQuery<string>({
+    queryKey: ["revision-content", revA.revisionId],
+    queryFn: () => fetch(`/api/lore/${noteId}/revisions/${revA.revisionId}/content`).then((r) => {
+      if (!r.ok) throw new Error("fetch failed");
+      return r.text();
+    }),
+  });
+
+  const { data: contentB } = useQuery<string>({
+    queryKey: ["revision-content", revB.revisionId],
+    queryFn: () => fetch(`/api/lore/${noteId}/revisions/${revB.revisionId}/content`).then((r) => {
+      if (!r.ok) throw new Error("fetch failed");
+      return r.text();
+    }),
+  });
+
+  const diffLines = useMemo(() => {
+    if (contentA === undefined || contentB === undefined) return [];
+    const before = diffMode === "visual" ? htmlToPlain(contentA) : contentA;
+    const after = diffMode === "visual" ? htmlToPlain(contentB) : contentB;
+    return computeLineDiff(before, after);
+  }, [contentA, contentB, diffMode]);
+
+  let leftNo = 0;
+  let rightNo = 0;
+
+  if (contentA === undefined || contentB === undefined) {
+    return (
+      <div className="p-4 text-xs text-muted-foreground">Loading revision content...</div>
+    );
+  }
+
+  return (
+    <div className="rounded-none border border-border/30 bg-card/40 overflow-hidden">
+      <div className="px-4 py-2 border-b border-border/20 flex items-center justify-between bg-muted/5">
+        <span className="text-xs text-muted-foreground">
+          {revA.title} → {revB.title}
+        </span>
+        <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant={diffMode === "visual" ? "secondary" : "ghost"}
+            className="h-6 text-[10px] rounded-none gap-1"
+            onClick={() => setDiffMode("visual")}
+          >
+            <FileText className="h-3 w-3" />
+            Text
+          </Button>
+          <Button
+            size="sm"
+            variant={diffMode === "raw" ? "secondary" : "ghost"}
+            className="h-6 text-[10px] rounded-none gap-1"
+            onClick={() => setDiffMode("raw")}
+          >
+            <Code2 className="h-3 w-3" />
+            HTML
+          </Button>
+        </div>
+      </div>
+      <div className="overflow-x-auto max-h-[300px] overflow-y-auto font-mono text-xs bg-muted/10 select-text">
+        {diffLines.length === 0 ? (
+          <div className="p-4 text-muted-foreground italic text-center">No changes.</div>
+        ) : (
+          <div className="min-w-[500px] divide-y divide-border/5">
+            {diffLines.map((line, idx) => {
+              let leftVal = "";
+              let rightVal = "";
+              let prefix = " ";
+              let rowClass = "text-muted-foreground/80 hover:bg-muted/5";
+
+              if (line.type === "added") {
+                rightNo++;
+                rightVal = rightNo.toString();
+                prefix = "+";
+                rowClass = "bg-emerald-950/20 text-emerald-400 hover:bg-emerald-950/30 border-l-2 border-l-emerald-500/80";
+              } else if (line.type === "removed") {
+                leftNo++;
+                leftVal = leftNo.toString();
+                prefix = "-";
+                rowClass = "bg-rose-950/20 text-rose-400 hover:bg-rose-950/30 border-l-2 border-l-rose-500/80";
+              } else {
+                leftNo++;
+                rightNo++;
+                leftVal = leftNo.toString();
+                rightVal = rightNo.toString();
+              }
+
+              return (
+                <div key={idx} className={`flex items-start ${rowClass} py-0.5 leading-5`}>
+                  <div className="text-muted-foreground/30 border-r border-border/15 select-none text-right pr-2 w-8 shrink-0 font-sans text-[10px]">{leftVal}</div>
+                  <div className="text-muted-foreground/30 border-r border-border/15 select-none text-right pr-2 w-8 shrink-0 font-sans text-[10px]">{rightVal}</div>
+                  <div className="w-5 select-none text-center font-bold text-[11px] font-mono shrink-0">{prefix}</div>
+                  <div className="flex-1 whitespace-pre-wrap pl-2 break-all pr-4">{line.text || " "}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RevisionHistory({ noteId }: { noteId: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const [comparePair, setComparePair] = useState<[number, number] | null>(null);
+
+  const { data: revisions = [], isLoading } = useQuery<Revision[]>({
+    queryKey: ["revisions", noteId],
+    queryFn: async () => {
+      const r = await fetch(`/api/lore/${noteId}/revisions`);
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: expanded,
+    staleTime: 30_000,
+  });
+
+  if (!expanded) {
+    return (
+      <Card className="wiki-rail-card">
+        <CardContent className="p-0">
+          <button
+            onClick={() => setExpanded(true)}
+            className="w-full px-5 py-3 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <History className="h-4 w-4" />
+            <span>Revision History</span>
+            <ChevronRight className="h-3.5 w-3.5 ml-auto" />
+          </button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="wiki-rail-card">
+      <CardContent className="p-5 space-y-3">
+        <button
+          onClick={() => setExpanded(false)}
+          className="w-full flex items-center gap-2 text-sm font-medium"
+        >
+          <History className="h-4 w-4" />
+          <span className="wiki-rail-kicker">Revision History</span>
+          <ChevronDown className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
+        </button>
+
+        {isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-8 w-full" />
+            ))}
+          </div>
+        ) : revisions.length === 0 ? (
+          <p className="text-xs text-muted-foreground italic">No revisions recorded.</p>
+        ) : (
+          <div className="space-y-1 max-h-[300px] overflow-y-auto">
+            {revisions.map((rev, idx) => {
+              const canCompare = idx < revisions.length - 1;
+              const isComparing = comparePair?.[0] === idx;
+
+              return (
+                <div key={rev.revisionId}>
+                  <div className="flex items-center gap-2 py-1.5 text-xs">
+                    <span className="text-muted-foreground shrink-0 w-28">
+                      {new Date(rev.dateCreated).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                    <span className="truncate flex-1 text-foreground/80">{rev.title}</span>
+                    {rev.revisionSource && rev.revisionSource !== "manual" && (
+                      <Badge variant="outline" className="text-[9px] rounded-none shrink-0">
+                        {rev.revisionSource.startsWith("brainDump") ? "brain dump" : rev.revisionSource}
+                      </Badge>
+                    )}
+                    {canCompare && (
+                      <Button
+                        size="sm"
+                        variant={isComparing ? "secondary" : "ghost"}
+                        className="h-6 text-[10px] rounded-none gap-1 shrink-0"
+                        onClick={() => setComparePair(isComparing ? null : [idx, idx + 1])}
+                      >
+                        <GitCompareArrows className="h-3 w-3" />
+                        Diff
+                      </Button>
+                    )}
+                  </div>
+                  {isComparing && comparePair && (
+                    <div className="mt-1 mb-3">
+                      <RevisionDiffView
+                        noteId={noteId}
+                        revA={revisions[comparePair[1]]}
+                        revB={revisions[comparePair[0]]}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -562,6 +793,8 @@ export default function LoreDetailPage({
               )}
 
               <RelationshipGraph noteId={id} noteTitle={note.title} />
+
+              <RevisionHistory noteId={id} />
 
               <ShareSettings
                 noteId={id}

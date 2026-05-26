@@ -391,3 +391,21 @@ export const BrainDumpBatchSubmitResultSchema = z.object({
 export type BrainDumpJob = z.infer<typeof BrainDumpJobSchema>;
 export type BrainDumpBatch = z.infer<typeof BrainDumpBatchSchema>;
 export type BrainDumpBatchSubmitResult = z.infer<typeof BrainDumpBatchSubmitResultSchema>;
+
+// ── Brain Dump Diffs ────────────────────────────────────────────────────────
+
+export const BrainDumpDiffSchema = z.object({
+  noteId: z.string(),
+  action: z.enum(["created", "updated", "noop"]),
+  revisionIdBefore: z.string().nullable(),
+  revisionIdAfter: z.string().nullable(),
+  contentBefore: z.string().nullable(),
+  contentAfter: z.string().nullable(),
+});
+
+export const BrainDumpDiffsResponseSchema = z.object({
+  diffs: z.array(BrainDumpDiffSchema),
+});
+
+export type BrainDumpDiff = z.infer<typeof BrainDumpDiffSchema>;
+export type BrainDumpDiffsResponse = z.infer<typeof BrainDumpDiffsResponseSchema>;

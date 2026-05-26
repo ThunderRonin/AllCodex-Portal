@@ -30,8 +30,10 @@ import {
   type PushSubscriptionPayload,
   BrainDumpBatchSchema,
   BrainDumpBatchSubmitResultSchema,
+  BrainDumpDiffsResponseSchema,
   type BrainDumpBatch,
   type BrainDumpBatchSubmitResult,
+  type BrainDumpDiffsResponse,
 } from "./allknower-schemas";
 
 export interface AkCreds {
@@ -751,5 +753,18 @@ export async function getBrainDumpBatch(creds: AkCreds, batchId: string): Promis
 export async function cancelBrainDumpBatch(creds: AkCreds, batchId: string): Promise<{ cancelled: number }> {
   const res = await akFetch(creds, `/brain-dump/batch/${batchId}`, { method: "DELETE" });
   return res.json();
+}
+
+// ── Brain Dump Diffs ────────────────────────────────────────────────────────
+
+export async function getBrainDumpDiffs(creds: AkCreds, historyId: string): Promise<BrainDumpDiffsResponse> {
+  const res = await akFetch(creds, `/brain-dump/history/${historyId}/diffs`);
+  const raw = await res.json();
+  const parsed = BrainDumpDiffsResponseSchema.safeParse(raw);
+  if (!parsed.success) {
+    console.error("[getBrainDumpDiffs] AllKnower schema mismatch:", parsed.error.message);
+    throw new ServiceError("SERVICE_ERROR", 502, "AllKnower returned an unexpected response format.");
+  }
+  return parsed.data;
 }
 

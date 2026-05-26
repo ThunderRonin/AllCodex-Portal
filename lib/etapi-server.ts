@@ -386,3 +386,27 @@ export async function getAppInfo(creds: EtapiCreds): Promise<EtapiAppInfo> {
   const res = await etapiFetch(creds, "/app-info");
   return res.json();
 }
+
+// ── Revisions ─────────────────────────────────────────────────────────────
+
+export interface EtapiRevision {
+  revisionId: string;
+  noteId: string;
+  type: string;
+  title: string;
+  dateCreated: string;
+  utcDateCreated: string;
+  contentLength?: number;
+  description: string;
+  revisionSource: string;
+}
+
+export async function getNoteRevisions(creds: EtapiCreds, noteId: string): Promise<EtapiRevision[]> {
+  const res = await etapiFetch(creds, `/notes/${noteId}/revisions`);
+  return res.json();
+}
+
+export async function getRevisionContent(creds: EtapiCreds, revisionId: string): Promise<string> {
+  const res = await etapiFetch(creds, `/revisions/${revisionId}/content`);
+  return res.text();
+}
