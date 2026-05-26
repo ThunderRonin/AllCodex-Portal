@@ -9,7 +9,7 @@ export interface DiffLine {
 
 export function htmlToPlain(html: string): string {
   if (typeof window === "undefined") {
-    return html.replace(/<[^>]+>/g, " ");
+    return html.replace(/<[^>]*>/g, " ");
   }
   try {
     const parser = new DOMParser();
@@ -28,7 +28,7 @@ export function htmlToPlain(html: string): string {
 
     return doc.body.textContent?.trim().replace(/\n{3,}/g, "\n\n") || "";
   } catch {
-    return html.replace(/<[^>]+>/g, " ");
+    return html.replace(/<[^>]*>/g, " ");
   }
 }
 
@@ -38,7 +38,10 @@ export function computeLineDiff(before: string, after: string): DiffLine[] {
 
   for (const change of changes) {
     const lines = change.value.replace(/\n$/, "").split("\n");
-    const type = change.added ? "added" : change.removed ? "removed" : "unchanged";
+    let type: DiffLine["type"];
+    if (change.added) type = "added";
+    else if (change.removed) type = "removed";
+    else type = "unchanged";
     for (const text of lines) {
       result.push({ type, text });
     }

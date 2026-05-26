@@ -36,8 +36,8 @@ const CR_ORDER: Record<string, number> = {
 function getCrLevel(cr: string): number {
   if (!cr) return 0;
   if (cr in CR_ORDER) return CR_ORDER[cr];
-  const num = parseFloat(cr);
-  return isNaN(num) ? 0 : num;
+  const num = Number.parseFloat(cr);
+  return Number.isNaN(num) ? 0 : num;
 }
 
 export function StatblockEditForm({ note, onCancel, onSaveSuccess }: StatblockEditFormProps) {
@@ -114,7 +114,7 @@ export function StatblockEditForm({ note, onCancel, onSaveSuccess }: StatblockEd
       for (const [key, newValue] of Object.entries(currentFields)) {
         const existingAttr = note.attributes.find((a) => a.name === key);
 
-        if (existingAttr && existingAttr.attributeId) {
+        if (existingAttr?.attributeId) {
           if (newValue === "") {
             deletes.push({ key, attrId: existingAttr.attributeId });
           } else if (existingAttr.value !== newValue) {
@@ -163,8 +163,8 @@ export function StatblockEditForm({ note, onCancel, onSaveSuccess }: StatblockEd
   });
 
   const getAbilityMod = (val: string) => {
-    const num = parseInt(val, 10);
-    return isNaN(num) ? "" : mod(num);
+    const num = Number.parseInt(val, 10);
+    return Number.isNaN(num) ? "" : mod(num);
   };
 
   return (
@@ -292,7 +292,7 @@ export function StatblockEditForm({ note, onCancel, onSaveSuccess }: StatblockEd
 
       {/* Ability Scores */}
       <div className="space-y-1.5">
-        <label className="font-semibold text-amber-200/80 uppercase tracking-widest text-[10px]">Ability Scores</label>
+        <span className="font-semibold text-amber-200/80 uppercase tracking-widest text-[10px]">Ability Scores</span>
         <div className="grid grid-cols-6 gap-2">
           {[
             { label: "STR", val: str, set: setStr },

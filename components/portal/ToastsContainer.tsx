@@ -12,17 +12,15 @@ export function ToastsContainer() {
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 w-80 max-w-[calc(100vw-3rem)]">
       {toasts.map((toast) => {
-        const Icon = toast.type === "success" 
-          ? CheckCircle 
-          : toast.type === "error" 
-            ? AlertTriangle 
-            : Info;
+        let Icon;
+        if (toast.type === "success") Icon = CheckCircle;
+        else if (toast.type === "error") Icon = AlertTriangle;
+        else Icon = Info;
 
-        const colorClasses = toast.type === "success"
-          ? "border-emerald-500/40 bg-emerald-950/40 hover:bg-emerald-950/50 text-emerald-300"
-          : toast.type === "error"
-            ? "border-rose-500/40 bg-rose-950/40 hover:bg-rose-950/50 text-rose-300"
-            : "border-amber-500/40 bg-amber-950/40 hover:bg-amber-950/50 text-amber-300";
+        let colorClasses;
+        if (toast.type === "success") colorClasses = "border-emerald-500/40 bg-emerald-950/40 hover:bg-emerald-950/50 text-emerald-300";
+        else if (toast.type === "error") colorClasses = "border-rose-500/40 bg-rose-950/40 hover:bg-rose-950/50 text-rose-300";
+        else colorClasses = "border-amber-500/40 bg-amber-950/40 hover:bg-amber-950/50 text-amber-300";
 
         return (
           <div
@@ -44,6 +42,7 @@ export function ToastsContainer() {
             </div>
             <button
               onClick={() => removeToast(toast.id)}
+              aria-label="Dismiss"
               className="p-0.5 rounded-sm hover:bg-white/10 opacity-60 hover:opacity-100 transition-all shrink-0 -mt-1 -mr-1"
             >
               <X className="h-3.5 w-3.5" />

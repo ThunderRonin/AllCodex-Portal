@@ -22,6 +22,7 @@ const EDGE_COLORS: Record<string, string> = {
   worships: "#c4b5fd",
   inhabits: "#67e8f9",
   related_to: "#94a3b8",
+  other: "#94a3b8",
 };
 
 interface GraphFilterBarProps {
@@ -95,22 +96,23 @@ export function GraphFilterBar({
       {showConfidence && (
         <div className="flex items-center gap-2 pt-1">
           <span className="text-[10px] text-muted-foreground">Confidence:</span>
-          {(["high", "medium", "low"] as const).map((level) => (
-            <Badge
-              key={level}
-              variant={enabledConfidences.has(level) ? "default" : "outline"}
-              className={`text-[9px] cursor-pointer px-1.5 py-0 ${
-                level === "high"
-                  ? "text-green-400"
-                  : level === "medium"
-                    ? "text-yellow-400"
-                    : "text-muted-foreground"
-              }`}
-              onClick={() => onToggleConfidence(level)}
-            >
-              {level}
-            </Badge>
-          ))}
+          {(["high", "medium", "low"] as const).map((level) => {
+            let levelColor;
+            if (level === "high") levelColor = "text-green-400";
+            else if (level === "medium") levelColor = "text-yellow-400";
+            else levelColor = "text-muted-foreground";
+
+            return (
+              <Badge
+                key={level}
+                variant={enabledConfidences.has(level) ? "default" : "outline"}
+                className={`text-[9px] cursor-pointer px-1.5 py-0 ${levelColor}`}
+                onClick={() => onToggleConfidence(level)}
+              >
+                {level}
+              </Badge>
+            );
+          })}
         </div>
       )}
     </div>

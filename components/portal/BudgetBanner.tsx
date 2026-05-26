@@ -27,7 +27,7 @@ export function BudgetBanner() {
     staleTime: 4 * 60 * 1000,
   });
 
-  if (!data || !data.configured) return null;
+  if (!data?.configured) return null;
   if (!data.dailyOverBudget && !data.monthlyOverBudget) return null;
 
   const parts: string[] = [];

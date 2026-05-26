@@ -10,7 +10,7 @@ interface StatusBadgeProps {
 export function StatusBadge({ state, version }: StatusBadgeProps) {
   if (state === "connected") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-none text-[11px] px-2.5 py-1 bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30">
+      <span className="inline-flex items-center gap-1.5 rounded-none text-[11px] px-2.5 py-1 bg-accent/20 text-accent border border-accent/30">
         <CheckCircle2 className="h-3 w-3 shrink-0" />
         Connected{version ? ` · v${version}` : ""}
       </span>

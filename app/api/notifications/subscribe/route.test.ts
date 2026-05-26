@@ -42,7 +42,7 @@ describe('/api/notifications/subscribe', () => {
 
     const req = new MockNextRequest('http://localhost/api/notifications/subscribe', {
       method: 'POST',
-      body: { endpoint: 'https://example.com' },
+      body: { endpoint: 'https://example.com', keys: { auth: 'a', p256dh: 'p' } },
     }) as any;
 
     const res = await POST(req) as any;
@@ -56,7 +56,7 @@ describe('/api/notifications/subscribe', () => {
 
     const req = new MockNextRequest('http://localhost/api/notifications/subscribe', {
       method: 'POST',
-      body: { endpoint: 'https://example.com' },
+      body: { endpoint: 'https://example.com', keys: { auth: 'a', p256dh: 'p' } },
     }) as any;
 
     const res = await POST(req) as any;

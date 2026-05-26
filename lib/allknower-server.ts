@@ -190,7 +190,7 @@ export async function registerAllKnower(
  * @returns `{ session: unknown; user: unknown }` — `session` is the session object or `null` if not present, and `user` is the user object or `null` if not present.
  */
 export async function getAllKnowerSession(creds: AkCreds): Promise<{ session: unknown; user: unknown }> {
-  const res = await akFetch(creds, "/api/auth/get-session", { method: "GET" });
+  const res = await akFetch(creds, "/api/auth/get-session", { method: "GET", signal: AbortSignal.timeout(60_000) });
   const data = await res.json().catch(() => ({}));
   return { session: data.session ?? null, user: data.user ?? null };
 }
@@ -199,7 +199,7 @@ export async function getAllKnowerSession(creds: AkCreds): Promise<{ session: un
  * Invalidates the session on the AllKnower server for the provided credentials.
  */
 export async function logoutAllKnower(creds: AkCreds): Promise<void> {
-  await akFetch(creds, "/api/auth/sign-out", { method: "POST", body: JSON.stringify({}) });
+  await akFetch(creds, "/api/auth/sign-out", { method: "POST", body: JSON.stringify({}), signal: AbortSignal.timeout(60_000) });
 }
 
 export interface AllCodexIntegrationStatus {
@@ -224,6 +224,7 @@ export async function connectAllCodexIntegration(
   const res = await akFetch(creds, "/integrations/allcodex/connect", {
     method: "POST",
     body: JSON.stringify({ baseUrl, token }),
+    signal: AbortSignal.timeout(60_000),
   });
   return res.json();
 }
@@ -234,7 +235,7 @@ export async function connectAllCodexIntegration(
  * @returns An `AllCodexIntegrationStatus` object containing `connected` (whether integration is active) and optional `baseUrl`, `tokenLast4`, and `updatedAt` fields.
  */
 export async function getAllCodexIntegrationStatus(creds: AkCreds): Promise<AllCodexIntegrationStatus> {
-  const res = await akFetch(creds, "/integrations/allcodex/status");
+  const res = await akFetch(creds, "/integrations/allcodex/status", { signal: AbortSignal.timeout(60_000) });
   return res.json();
 }
 
@@ -244,7 +245,7 @@ export async function getAllCodexIntegrationStatus(creds: AkCreds): Promise<AllC
  * @returns An object with `ok: true` if the deletion succeeded, `ok: false` otherwise.
  */
 export async function deleteAllCodexIntegration(creds: AkCreds): Promise<{ ok: boolean }> {
-  const res = await akFetch(creds, "/integrations/allcodex", { method: "DELETE" });
+  const res = await akFetch(creds, "/integrations/allcodex", { method: "DELETE", signal: AbortSignal.timeout(60_000) });
   return res.json();
 }
 
@@ -262,6 +263,7 @@ export async function resolveAllCodexCredentials(
     method: "POST",
     headers: { "X-Portal-Internal-Secret": portalInternalSecret },
     body: JSON.stringify({}),
+    signal: AbortSignal.timeout(60_000),
   });
   return res.json();
 }
@@ -422,7 +424,7 @@ export async function getBrainDumpHistory(
   const params = new URLSearchParams();
   if (cursor) params.set("cursor", cursor);
   const qs = params.toString();
-  const res = await akFetch(creds, `/brain-dump/history${qs ? `?${qs}` : ""}`);
+  const res = await akFetch(creds, `/brain-dump/history${qs ? `?${qs}` : ""}`, { signal: AbortSignal.timeout(60_000) });
   const data = await res.json();
   const items = data.items ?? (Array.isArray(data) ? data : []);
   return { items, nextCursor: data.nextCursor, hasMore: !!data.nextCursor };
@@ -435,7 +437,7 @@ export async function getBrainDumpHistory(
  * @returns The requested BrainDumpDetailEntry parsed from the response body
  */
 export async function getBrainDumpEntry(creds: AkCreds, id: string): Promise<BrainDumpDetailEntry> {
-  const res = await akFetch(creds, `/brain-dump/history/${encodeURIComponent(id)}`);
+  const res = await akFetch(creds, `/brain-dump/history/${encodeURIComponent(id)}`, { signal: AbortSignal.timeout(60_000) });
   return res.json();
 }
 
@@ -451,6 +453,7 @@ export async function queryRag(creds: AkCreds, text: string, topK = 10): Promise
   const res = await akFetch(creds, "/rag/query", {
     method: "POST",
     body: JSON.stringify({ text, topK }),
+    signal: AbortSignal.timeout(60_000),
   });
   const data = await res.json();
   return data.results ?? [];
@@ -487,16 +490,16 @@ export async function runArticleCopilot(
  * @returns An object containing `indexedNotes` (the number of notes indexed), `lastIndexed` (ISO timestamp of the last indexing run or `null` if never indexed), and `model` (the name of the model used for RAG or `null` if unspecified).
  */
 export async function getRagStatus(creds: AkCreds): Promise<{ indexedNotes: number; lastIndexed: string | null; model: string | null }> {
-  const res = await akFetch(creds, "/rag/status");
+  const res = await akFetch(creds, "/rag/status", { signal: AbortSignal.timeout(60_000) });
   return res.json();
 }
 
 export async function triggerReindex(creds: AkCreds, noteId?: string): Promise<{ ok: boolean }> {
   if (noteId) {
-    const res = await akFetch(creds, `/rag/reindex/${noteId}`, { method: "POST" });
+    const res = await akFetch(creds, `/rag/reindex/${noteId}`, { method: "POST", signal: AbortSignal.timeout(60_000) });
     return res.json();
   }
-  const res = await akFetch(creds, "/rag/reindex", { method: "POST" });
+  const res = await akFetch(creds, "/rag/reindex", { method: "POST", signal: AbortSignal.timeout(60_000) });
   return res.json();
 }
 
@@ -586,7 +589,7 @@ export async function getRelationshipGraph(
  * @returns The response's `suggestions` array if present, otherwise an empty array.
  */
 export async function akFetchAutocomplete(creds: AkCreds, q: string): Promise<any[]> {
-  const res = await akFetch(creds, `/suggest/autocomplete?q=${encodeURIComponent(q)}`);
+  const res = await akFetch(creds, `/suggest/autocomplete?q=${encodeURIComponent(q)}`, { signal: AbortSignal.timeout(60_000) });
   const data = await res.json();
   return data.suggestions ?? [];
 }
@@ -646,7 +649,7 @@ export async function getGaps(creds: AkCreds): Promise<GapResult> {
  * @returns An object with `status`, `allcodex`, and `ollama` fields, each a string.
  */
 export async function getHealth(creds: AkCreds): Promise<{ status: string; allcodex: string; ollama: string }> {
-  const res = await akFetch(creds, "/health");
+  const res = await akFetch(creds, "/health", { signal: AbortSignal.timeout(60_000) });
   return res.json();
 }
 
@@ -661,7 +664,7 @@ export interface ModelChainConfig {
  * @returns A record mapping chain names to `ModelChainConfig` objects.
  */
 export async function getModelChains(creds: AkCreds): Promise<Record<string, ModelChainConfig>> {
-  const res = await akFetch(creds, "/config/models");
+  const res = await akFetch(creds, "/config/models", { signal: AbortSignal.timeout(60_000) });
   return res.json();
 }
 
@@ -682,6 +685,7 @@ export async function getRelationshipHistory(
   const res = await akFetch(
     creds,
     `/suggest/history/${encodeURIComponent(noteId)}?${params}`,
+    { signal: AbortSignal.timeout(60_000) },
   );
   const raw = await res.json();
   const parsed = RelationHistoryResponseSchema.safeParse(raw);
@@ -696,7 +700,7 @@ export async function getRelationshipHistory(
  * Fetches LLM call and token metrics from AllKnower.
  */
 export async function getMetricsLLM(creds: AkCreds): Promise<MetricsLLMResult> {
-  const res = await akFetch(creds, "/metrics/llm");
+  const res = await akFetch(creds, "/metrics/llm", { signal: AbortSignal.timeout(60_000) });
   const raw = await res.json();
   const parsed = MetricsLLMResultSchema.safeParse(raw);
   if (!parsed.success) {
@@ -713,6 +717,7 @@ export async function subscribeNotifications(
   const res = await akFetch(creds, "/notifications/subscribe", {
     method: "POST",
     body: JSON.stringify(subscription),
+    signal: AbortSignal.timeout(60_000),
   });
   return res.json();
 }
@@ -721,6 +726,7 @@ export async function unsubscribeNotifications(creds: AkCreds, endpoint: string)
   const res = await akFetch(creds, "/notifications/unsubscribe", {
     method: "DELETE",
     body: JSON.stringify({ endpoint }),
+    signal: AbortSignal.timeout(60_000),
   });
   return res.json();
 }
@@ -746,7 +752,7 @@ export async function submitBrainDumpBatch(
 }
 
 export async function getBrainDumpBatch(creds: AkCreds, batchId: string): Promise<BrainDumpBatch> {
-  const res = await akFetch(creds, `/brain-dump/batch/${batchId}`);
+  const res = await akFetch(creds, `/brain-dump/batch/${batchId}`, { signal: AbortSignal.timeout(60_000) });
   const raw = await res.json();
   const parsed = BrainDumpBatchSchema.safeParse(raw);
   if (!parsed.success) {
@@ -757,14 +763,14 @@ export async function getBrainDumpBatch(creds: AkCreds, batchId: string): Promis
 }
 
 export async function cancelBrainDumpBatch(creds: AkCreds, batchId: string): Promise<{ cancelled: number }> {
-  const res = await akFetch(creds, `/brain-dump/batch/${batchId}`, { method: "DELETE" });
+  const res = await akFetch(creds, `/brain-dump/batch/${batchId}`, { method: "DELETE", signal: AbortSignal.timeout(60_000) });
   return res.json();
 }
 
 // ── Brain Dump Diffs ────────────────────────────────────────────────────────
 
 export async function getBrainDumpDiffs(creds: AkCreds, historyId: string): Promise<BrainDumpDiffsResponse> {
-  const res = await akFetch(creds, `/brain-dump/history/${historyId}/diffs`);
+  const res = await akFetch(creds, `/brain-dump/history/${historyId}/diffs`, { signal: AbortSignal.timeout(60_000) });
   const raw = await res.json();
   const parsed = BrainDumpDiffsResponseSchema.safeParse(raw);
   if (!parsed.success) {
@@ -785,7 +791,8 @@ export async function getUsageSummary(
   if (from) params.set("from", from);
   if (to) params.set("to", to);
   const qs = params.toString();
-  const res = await akFetch(creds, `/usage/summary${qs ? `?${qs}` : ""}`);
+  const suffix = qs ? `?${qs}` : "";
+  const res = await akFetch(creds, `/usage/summary${suffix}`, { signal: AbortSignal.timeout(60_000) });
   const raw = await res.json();
   const parsed = UsageSummarySchema.safeParse(raw);
   if (!parsed.success) {
@@ -796,7 +803,7 @@ export async function getUsageSummary(
 }
 
 export async function getUserBudget(creds: AkCreds): Promise<UserBudget> {
-  const res = await akFetch(creds, "/usage/budgets");
+  const res = await akFetch(creds, "/usage/budgets", { signal: AbortSignal.timeout(60_000) });
   const raw = await res.json();
   const parsed = UserBudgetSchema.safeParse(raw);
   if (!parsed.success) {
@@ -813,11 +820,12 @@ export async function putUserBudget(
   await akFetch(creds, "/usage/budgets", {
     method: "PUT",
     body: JSON.stringify(budget),
+    signal: AbortSignal.timeout(60_000),
   });
 }
 
 export async function getUsageAlertStatus(creds: AkCreds): Promise<UsageAlertStatus> {
-  const res = await akFetch(creds, "/usage/alert-status");
+  const res = await akFetch(creds, "/usage/alert-status", { signal: AbortSignal.timeout(60_000) });
   const raw = await res.json();
   const parsed = UsageAlertStatusSchema.safeParse(raw);
   if (!parsed.success) {

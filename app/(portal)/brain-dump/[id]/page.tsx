@@ -128,7 +128,6 @@ function RevisionDiffCard({ rev }: { rev: { noteId: string; title: string; conte
                 rightNo++;
                 leftVal = leftNo.toString();
                 rightVal = rightNo.toString();
-                prefix = " ";
               }
 
               return (
@@ -347,7 +346,7 @@ export default function BrainDumpDetailPage() {
       )}
 
       {/* Lore Revisions Diff */}
-      {!isLoading && entry && entry.parsedJson?.revisions && entry.parsedJson.revisions.length > 0 && (
+      {!isLoading && entry?.parsedJson?.revisions && entry.parsedJson.revisions.length > 0 && (
         <div className="space-y-4 pt-4 border-t border-border/20">
           <h2
             className="text-sm font-semibold text-muted-foreground uppercase tracking-wider"

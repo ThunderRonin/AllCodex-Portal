@@ -241,6 +241,7 @@ export function ArticleCopilot() {
   const hasConversation = messages.length > 0;
   const citations = useMemo(() => lastResponse?.citations ?? [], [lastResponse]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     if (!pendingProposal || !noteId) {
@@ -291,6 +292,9 @@ export function ArticleCopilot() {
       setDraft("");
     }
 
+    const myRequestId = ++requestIdRef.current;
+    const isStale = () => requestIdRef.current !== myRequestId;
+
     const watchId = "copilot-" + Date.now();
     useNotificationStore.getState().watch({
       id: watchId,
@@ -298,6 +302,7 @@ export function ArticleCopilot() {
       title: "Copilot Chat",
       href: window.location.pathname,
     });
+    let watchResolved = false;
 
     const currentMessages = useCopilotStore.getState().conversations[noteId]?.messages || [];
     const nextMessages = [...currentMessages, { role: "user" as const, content }];
@@ -311,6 +316,7 @@ export function ArticleCopilot() {
       const sessionId = useCopilotStore.getState().conversations[noteId]?.sessionId;
       let accumulated = "";
       for await (const event of stream(`/api/lore/${noteId}/copilot/stream`, { messages: nextMessages, sessionId: sessionId ?? undefined })) {
+        if (isStale()) break;
         if (event.event === "token") {
           accumulated += (event.data as { content: string }).content;
           store.updateLastMessage(noteId, accumulated);
@@ -324,25 +330,35 @@ export function ArticleCopilot() {
           setLastResponse(response);
           setIsRedirecting(false);
           setRedirectDraft("");
+          watchResolved = true;
           useNotificationStore.getState().complete(watchId, { summary: "Assistant replied." });
         } else if (event.event === "error") {
           const errData = event.data as { error: string };
           store.updateLastMessage(noteId, `Error: ${errData.error}`);
           setErrorService("AllKnower");
           store.setLastError({ message: errData.error });
+          watchResolved = true;
           useNotificationStore.getState().fail(watchId, { error: errData.error || "Copilot failed." });
         }
       }
     } catch (error: any) {
+      if (isStale()) return;
       if (error.name === "AbortError") {
+        watchResolved = true;
         useNotificationStore.getState().dismiss(watchId);
       } else {
         setErrorService("AllKnower");
         store.setLastError(error as { message: string });
+        watchResolved = true;
         useNotificationStore.getState().fail(watchId, { error: error.message || "Copilot failed." });
       }
     } finally {
-      setIsSending(false);
+      if (!isStale()) {
+        setIsSending(false);
+        if (!watchResolved) {
+          useNotificationStore.getState().complete(watchId, { summary: "Stream ended." });
+        }
+      }
     }
   }
 

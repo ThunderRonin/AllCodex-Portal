@@ -90,7 +90,7 @@ export const useNotificationStore = create<NotificationState>()(
     dismiss: (id) => set((s) => ({ notifications: s.notifications.filter((n) => n.id !== id) })),
     dismissAll: () => set({ notifications: [] }),
     addToast: (toast) => {
-      const id = Math.random().toString(36).substring(2, 9);
+      const id = crypto.randomUUID().slice(0, 8);
       set((s) => ({ toasts: [...s.toasts, { ...toast, id }] }));
       setTimeout(() => get().removeToast(id), toast.duration ?? 6000);
     },

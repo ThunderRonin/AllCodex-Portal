@@ -43,8 +43,8 @@ export function TokenBudgetCard() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          dailyBudgetUsd: dailyBudget ? parseFloat(dailyBudget) : null,
-          monthlyBudgetUsd: monthlyBudget ? parseFloat(monthlyBudget) : null,
+          dailyBudgetUsd: dailyBudget ? Number.parseFloat(dailyBudget) : null,
+          monthlyBudgetUsd: monthlyBudget ? Number.parseFloat(monthlyBudget) : null,
           alertEmail: alertEmail || null,
         }),
       });
@@ -68,8 +68,9 @@ export function TokenBudgetCard() {
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground">Daily Budget (USD)</label>
+            <label htmlFor="daily-budget" className="text-xs text-muted-foreground">Daily Budget (USD)</label>
             <Input
+              id="daily-budget"
               type="number"
               step="0.01"
               min="0"
@@ -80,8 +81,9 @@ export function TokenBudgetCard() {
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground">Monthly Budget (USD)</label>
+            <label htmlFor="monthly-budget" className="text-xs text-muted-foreground">Monthly Budget (USD)</label>
             <Input
+              id="monthly-budget"
               type="number"
               step="0.01"
               min="0"
@@ -94,8 +96,9 @@ export function TokenBudgetCard() {
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground">Alert Email</label>
+          <label htmlFor="alert-email" className="text-xs text-muted-foreground">Alert Email</label>
           <Input
+            id="alert-email"
             type="email"
             placeholder="you@example.com"
             value={alertEmail}

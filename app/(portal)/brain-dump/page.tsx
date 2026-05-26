@@ -234,7 +234,7 @@ export default function BrainDumpPage() {
     reviewState, setReviewState, toggleReviewApproval,
     inboxItems, addToInbox, removeFromInbox,
     expandedIds, toggleExpanded,
-    streamStatus, setStreamStatus, appendStreamToken, resetStream,
+    streamStatus,
     streamStartedAt, streamTokenCount,
     isStreaming, runStreamingIngestion, cancelStreamingIngestion,
   } = useBrainDumpStore();
@@ -266,7 +266,7 @@ export default function BrainDumpPage() {
   const [activeTab, setActiveTab] = useState<"single" | "bulk">("single");
   const [bulkFiles, setBulkFiles] = useState<Array<{ name: string; content: string; status: "pending" | "processing" | "success" | "error"; error?: string }>>([]);
   const [isBulkProcessing, setIsBulkProcessing] = useState(false);
-  const [currentBulkIndex, setCurrentBulkIndex] = useState(-1);
+  const [, setCurrentBulkIndex] = useState(-1);
   const [pastedBulkText, setPastedBulkText] = useState("");
 
   // Scribe's Log — stage simulation
@@ -475,7 +475,7 @@ export default function BrainDumpPage() {
   async function handleAutoStream(rawText: string, model?: string) {
     setResult(null);
     setReviewState(null);
-    void runStreamingIngestion(rawText, model ?? null, queryClient, runConsistencyCheck);
+    runStreamingIngestion(rawText, model ?? null, queryClient, runConsistencyCheck);
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

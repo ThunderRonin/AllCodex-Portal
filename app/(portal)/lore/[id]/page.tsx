@@ -292,7 +292,7 @@ interface Revision {
 function RevisionDiffView({ noteId, revA, revB }: { noteId: string; revA: Revision; revB: Revision }) {
   const [diffMode, setDiffMode] = useState<"visual" | "raw">("visual");
 
-  const { data: contentA } = useQuery<string>({
+  const { data: contentA, isError: isErrorA } = useQuery<string>({
     queryKey: ["revision-content", revA.revisionId],
     queryFn: () => fetch(`/api/lore/${noteId}/revisions/${revA.revisionId}/content`).then((r) => {
       if (!r.ok) throw new Error("fetch failed");
@@ -300,7 +300,7 @@ function RevisionDiffView({ noteId, revA, revB }: { noteId: string; revA: Revisi
     }),
   });
 
-  const { data: contentB } = useQuery<string>({
+  const { data: contentB, isError: isErrorB } = useQuery<string>({
     queryKey: ["revision-content", revB.revisionId],
     queryFn: () => fetch(`/api/lore/${noteId}/revisions/${revB.revisionId}/content`).then((r) => {
       if (!r.ok) throw new Error("fetch failed");
@@ -317,6 +317,12 @@ function RevisionDiffView({ noteId, revA, revB }: { noteId: string; revA: Revisi
 
   let leftNo = 0;
   let rightNo = 0;
+
+  if (isErrorA || isErrorB) {
+    return (
+      <div className="p-4 text-xs text-destructive">Failed to load revision content.</div>
+    );
+  }
 
   if (contentA === undefined || contentB === undefined) {
     return (
@@ -399,11 +405,11 @@ function RevisionHistory({ noteId }: { noteId: string }) {
   const [expanded, setExpanded] = useState(false);
   const [comparePair, setComparePair] = useState<[number, number] | null>(null);
 
-  const { data: revisions = [], isLoading } = useQuery<Revision[]>({
+  const { data: revisions = [], isLoading, isError } = useQuery<Revision[]>({
     queryKey: ["revisions", noteId],
     queryFn: async () => {
       const r = await fetch(`/api/lore/${noteId}/revisions`);
-      if (!r.ok) return [];
+      if (!r.ok) throw new Error(`Failed to load revisions (${r.status})`);
       return r.json();
     },
     enabled: expanded,
@@ -439,7 +445,9 @@ function RevisionHistory({ noteId }: { noteId: string }) {
           <ChevronDown className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
         </button>
 
-        {isLoading ? (
+        {isError ? (
+          <p className="text-xs text-destructive">Failed to load revision history.</p>
+        ) : isLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 3 }).map((_, i) => (
               <Skeleton key={i} className="h-8 w-full" />

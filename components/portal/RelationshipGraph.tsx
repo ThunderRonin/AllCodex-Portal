@@ -9,9 +9,9 @@ import { Network, ChevronDown, ChevronUp, Loader2, Check, Plus, ArrowRight, Laye
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type Node as RFNode, type Edge as RFEdge, MarkerType } from "@xyflow/react";
-import { ReactFlowGraph } from "./ReactFlowGraph";
-import { GraphFilterBar } from "./GraphFilterBar";
-import { GraphMetrics } from "./GraphMetrics";
+import { ReactFlowGraph } from "@/components/portal/ReactFlowGraph";
+import { GraphFilterBar } from "@/components/portal/GraphFilterBar";
+import { GraphMetrics } from "@/components/portal/GraphMetrics";
 import type { GraphResponse } from "@/lib/allknower-schemas";
 
 // ── Relationship type → edge color mapping ────────────────────────────────────
@@ -34,6 +34,7 @@ const EDGE_COLORS: Record<string, string> = {
   worships: "#c4b5fd",
   inhabits: "#67e8f9",
   related_to: "#94a3b8",
+  other: "#94a3b8",
 };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -533,7 +534,7 @@ export function RelationshipGraph({ noteId, noteTitle }: RelationshipGraphProps)
     if (graphData) {
       for (const e of graphData.edges) types.add(e.relationshipType);
     }
-    return Array.from(types).sort();
+    return Array.from(types).sort((a, b) => a.localeCompare(b));
   }, [allEdges, graphData]);
 
   const activeTypes = useMemo(

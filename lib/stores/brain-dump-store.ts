@@ -203,8 +203,8 @@ export const useBrainDumpStore = create<BrainDumpState>()(
                   setText("");
 
                   if (queryClient) {
-                    void queryClient.invalidateQueries({ queryKey: ["brain-dump-history"] });
-                    void queryClient.invalidateQueries({ queryKey: ["lore"] });
+                    queryClient.invalidateQueries({ queryKey: ["brain-dump-history"] });
+                    queryClient.invalidateQueries({ queryKey: ["lore"] });
                   }
 
                   const newNoteIds = [
@@ -212,7 +212,7 @@ export const useBrainDumpStore = create<BrainDumpState>()(
                     ...normalized.updated.map((e: any) => e.noteId),
                   ];
                   if (runConsistencyCheck && newNoteIds.length > 0) {
-                    void runConsistencyCheck(newNoteIds);
+                    runConsistencyCheck(newNoteIds);
                   }
 
                   useNotificationStore.getState().complete(watchId, {

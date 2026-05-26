@@ -60,11 +60,13 @@ export function NotificationBell() {
   const showBadge = mounted && pendingCount > 0;
   const displayNotifications = mounted ? sorted : [];
 
+  const badgeSuffix = showBadge ? ` (${pendingCount} pending)` : "";
+
   return (
     <>
       <button
         onClick={() => setOpen(true)}
-        aria-label={`Notifications${showBadge ? ` (${pendingCount} pending)` : ""}`}
+        aria-label={`Notifications${badgeSuffix}`}
         className="relative p-1.5 rounded-sm hover:bg-muted/20 transition-colors cursor-pointer"
       >
         <Bell className="h-4 w-4 text-muted-foreground" />
@@ -123,6 +125,7 @@ export function NotificationBell() {
                   </div>
                   <button
                     onClick={() => dismiss(n.id)}
+                    aria-label="Dismiss notification"
                     className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:text-destructive shrink-0 cursor-pointer"
                   >
                     <X className="h-3.5 w-3.5 text-muted-foreground/40" />
