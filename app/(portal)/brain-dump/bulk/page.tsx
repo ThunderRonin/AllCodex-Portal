@@ -134,8 +134,11 @@ export default function BulkBrainDumpPage() {
         <>
           {/* Drop zone */}
           <div
+            role="button"
+            tabIndex={0}
             onDrop={handleDrop}
             onDragOver={(e) => e.preventDefault()}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); (e.currentTarget as HTMLElement).click(); } }}
             className="border-2 border-dashed border-amber-900/40 rounded-lg p-8 text-center cursor-pointer hover:border-amber-700/50 transition-colors"
             onClick={() => {
               const input = document.createElement("input");
