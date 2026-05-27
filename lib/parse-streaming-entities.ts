@@ -62,52 +62,63 @@ function tryParseEntity(raw: string): StreamingEntity | null {
   return null;
 }
 
+interface ScannerState {
+  braceDepth: number;
+  inString: boolean;
+  escapeNext: boolean;
+  currentObjectStart: number;
+}
+
 interface ExtractResult {
   entities: StreamingEntity[];
   currentObjectStart: number;
   braceDepth: number;
 }
 
-/**
- * Walks the JSON string character-by-character starting after the array
- * opening bracket, extracting fully-formed entity objects and tracking
- * parser state for partial detection.
- */
+function collectEntity(jsonStr: string, start: number, end: number, entities: StreamingEntity[]) {
+  const entity = tryParseEntity(jsonStr.substring(start, end + 1));
+  if (entity) entities.push(entity);
+}
+
+function processChar(
+  char: string,
+  i: number,
+  state: ScannerState,
+  jsonStr: string,
+  entities: StreamingEntity[],
+): "continue" | "break" | undefined {
+  if (state.escapeNext) { state.escapeNext = false; return "continue"; }
+  if (char === "\\") { state.escapeNext = true; return "continue"; }
+  if (char === '"') { state.inString = !state.inString; return "continue"; }
+  if (state.inString) return "continue";
+
+  if (char === "{") {
+    if (state.braceDepth === 0) state.currentObjectStart = i;
+    state.braceDepth++;
+    return "continue";
+  }
+  if (char === "}") {
+    state.braceDepth--;
+    if (state.braceDepth === 0 && state.currentObjectStart !== -1) {
+      collectEntity(jsonStr, state.currentObjectStart, i, entities);
+      state.currentObjectStart = -1;
+    }
+    return "continue";
+  }
+  if (char === "]" && state.braceDepth === 0) return "break";
+  return undefined;
+}
+
 function extractCompletedEntities(jsonStr: string, arrayStartIndex: number): ExtractResult {
   const entities: StreamingEntity[] = [];
-  let braceDepth = 0;
-  let inString = false;
-  let escapeNext = false;
-  let currentObjectStart = -1;
+  const state: ScannerState = { braceDepth: 0, inString: false, escapeNext: false, currentObjectStart: -1 };
 
   for (let i = arrayStartIndex + 1; i < jsonStr.length; i++) {
-    const char = jsonStr[i];
-
-    if (escapeNext) { escapeNext = false; continue; }
-    if (char === "\\") { escapeNext = true; continue; }
-    if (char === '"') { inString = !inString; continue; }
-    if (inString) continue;
-
-    if (char === "{") {
-      if (braceDepth === 0) currentObjectStart = i;
-      braceDepth++;
-      continue;
-    }
-
-    if (char === "}") {
-      braceDepth--;
-      if (braceDepth === 0 && currentObjectStart !== -1) {
-        const entity = tryParseEntity(jsonStr.substring(currentObjectStart, i + 1));
-        if (entity) entities.push(entity);
-        currentObjectStart = -1;
-      }
-      continue;
-    }
-
-    if (char === "]" && braceDepth === 0) break;
+    const action = processChar(jsonStr[i], i, state, jsonStr, entities);
+    if (action === "break") break;
   }
 
-  return { entities, currentObjectStart, braceDepth };
+  return { entities, currentObjectStart: state.currentObjectStart, braceDepth: state.braceDepth };
 }
 
 export function parseStreamingEntities(jsonStr: string): StreamingEntitiesParseResult {
