@@ -153,11 +153,12 @@ export default async function globalSetup(config: FullConfig) {
     return;
   }
 
-  // Probe AllKnower before attempting auth — skip gracefully if unreachable
-  // (mocked E2E tests don't need a live backend)
+  // Probe AllKnower before attempting auth — skip gracefully if unreachable.
+  // Use /api/auth/ok instead of /health because /health returns 503 when
+  // stored ETAPI creds are stale — but the setup itself fixes that (step 3).
   try {
-    const probe = await fetch(`${allknowerUrl}/health`, { signal: AbortSignal.timeout(3_000) });
-    if (!probe.ok) throw new Error(`health returned ${probe.status}`);
+    const probe = await fetch(`${allknowerUrl}/api/auth/ok`, { signal: AbortSignal.timeout(3_000) });
+    if (!probe.ok) throw new Error(`auth probe returned ${probe.status}`);
   } catch {
     console.warn("[global-setup] AllKnower unreachable — skipping auth setup (mocked tests will still run)");
     return;

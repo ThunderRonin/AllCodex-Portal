@@ -3,8 +3,11 @@ import { AppSidebar } from "@/components/portal/AppSidebar";
 import { Separator } from "@/components/ui/separator";
 import { Scroll } from "lucide-react";
 import { ThemeToggle } from "@/components/portal/ThemeToggle";
+import { NotificationBell } from "@/components/portal/NotificationBell";
 import { CopilotProvider } from "@/components/portal/CopilotProvider";
 import { CommandPalette } from "@/components/portal/CommandPalette";
+import { ToastsContainer } from "@/components/portal/ToastsContainer";
+import { BudgetBanner } from "@/components/portal/BudgetBanner";
 
 /**
  * Layout wrapper that provides sidebar context and renders the app sidebar, a header with controls, and a scrollable main content area.
@@ -17,6 +20,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
+        <BudgetBanner />
         <header className="flex h-13 shrink-0 items-center gap-3 border-b border-border/40 px-4 bg-card/30">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="h-4 bg-border/60" />
@@ -29,7 +33,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
               All Reach Chronicle
             </span>
           </div>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <NotificationBell />
             <ThemeToggle />
           </div>
         </header>
@@ -37,6 +42,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
           <CopilotProvider>
             {children}
             <CommandPalette />
+            <ToastsContainer />
           </CopilotProvider>
         </div>
       </SidebarInset>

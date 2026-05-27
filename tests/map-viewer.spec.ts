@@ -405,7 +405,7 @@ test.describe("MapViewer — upload flow", () => {
 
   test("file input triggers upload and map re-renders with new image after success", async ({ page }) => {
     const errors = attachConsoleErrorCollector(page);
-    let mapCallCount = 0;
+    let uploaded = false;
 
     await installPortalApiMocks(page, {
       notes: [buildGeoMapNote({ noteId: "map-1", title: "Upload Test Map" })],
@@ -417,6 +417,7 @@ test.describe("MapViewer — upload flow", () => {
         await route.fallback();
         return;
       }
+      uploaded = true;
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -430,8 +431,7 @@ test.describe("MapViewer — upload flow", () => {
         await route.fallback();
         return;
       }
-      mapCallCount++;
-      if (mapCallCount <= 1) {
+      if (!uploaded) {
         await route.fulfill({
           status: 200,
           contentType: "application/json",

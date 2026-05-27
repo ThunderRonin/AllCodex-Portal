@@ -17,6 +17,7 @@ interface Suggestion {
   targetTitle: string;
   relationshipType: string;
   description: string;
+  confidence?: "high" | "medium" | "low";
 }
 
 interface AIToolsState {

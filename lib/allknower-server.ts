@@ -16,11 +16,30 @@ import {
   BrainDumpResultSchema,
   ConsistencyResultSchema,
   GapResultSchema,
+  GraphResponseSchema,
   RelationshipsResultSchema,
+  RelationHistoryResponseSchema,
   type ApplyRelationshipsResult,
   type ConsistencyResult,
   type GapResult,
+  type GraphResponse,
   type RelationshipsResult,
+  type RelationHistoryEntry,
+  MetricsLLMResultSchema,
+  type MetricsLLMResult,
+  type PushSubscriptionPayload,
+  BrainDumpBatchSchema,
+  BrainDumpBatchSubmitResultSchema,
+  BrainDumpDiffsResponseSchema,
+  type BrainDumpBatch,
+  type BrainDumpBatchSubmitResult,
+  type BrainDumpDiffsResponse,
+  UsageSummarySchema,
+  UserBudgetSchema,
+  UsageAlertStatusSchema,
+  type UsageSummary,
+  type UserBudget,
+  type UsageAlertStatus,
 } from "./allknower-schemas";
 
 export interface AkCreds {
@@ -171,7 +190,7 @@ export async function registerAllKnower(
  * @returns `{ session: unknown; user: unknown }` — `session` is the session object or `null` if not present, and `user` is the user object or `null` if not present.
  */
 export async function getAllKnowerSession(creds: AkCreds): Promise<{ session: unknown; user: unknown }> {
-  const res = await akFetch(creds, "/api/auth/get-session", { method: "GET" });
+  const res = await akFetch(creds, "/api/auth/get-session", { method: "GET", signal: AbortSignal.timeout(60_000) });
   const data = await res.json().catch(() => ({}));
   return { session: data.session ?? null, user: data.user ?? null };
 }
@@ -180,7 +199,7 @@ export async function getAllKnowerSession(creds: AkCreds): Promise<{ session: un
  * Invalidates the session on the AllKnower server for the provided credentials.
  */
 export async function logoutAllKnower(creds: AkCreds): Promise<void> {
-  await akFetch(creds, "/api/auth/sign-out", { method: "POST", body: JSON.stringify({}) });
+  await akFetch(creds, "/api/auth/sign-out", { method: "POST", body: JSON.stringify({}), signal: AbortSignal.timeout(60_000) });
 }
 
 export interface AllCodexIntegrationStatus {
@@ -205,6 +224,7 @@ export async function connectAllCodexIntegration(
   const res = await akFetch(creds, "/integrations/allcodex/connect", {
     method: "POST",
     body: JSON.stringify({ baseUrl, token }),
+    signal: AbortSignal.timeout(60_000),
   });
   return res.json();
 }
@@ -215,7 +235,7 @@ export async function connectAllCodexIntegration(
  * @returns An `AllCodexIntegrationStatus` object containing `connected` (whether integration is active) and optional `baseUrl`, `tokenLast4`, and `updatedAt` fields.
  */
 export async function getAllCodexIntegrationStatus(creds: AkCreds): Promise<AllCodexIntegrationStatus> {
-  const res = await akFetch(creds, "/integrations/allcodex/status");
+  const res = await akFetch(creds, "/integrations/allcodex/status", { signal: AbortSignal.timeout(60_000) });
   return res.json();
 }
 
@@ -225,7 +245,7 @@ export async function getAllCodexIntegrationStatus(creds: AkCreds): Promise<AllC
  * @returns An object with `ok: true` if the deletion succeeded, `ok: false` otherwise.
  */
 export async function deleteAllCodexIntegration(creds: AkCreds): Promise<{ ok: boolean }> {
-  const res = await akFetch(creds, "/integrations/allcodex", { method: "DELETE" });
+  const res = await akFetch(creds, "/integrations/allcodex", { method: "DELETE", signal: AbortSignal.timeout(60_000) });
   return res.json();
 }
 
@@ -243,6 +263,7 @@ export async function resolveAllCodexCredentials(
     method: "POST",
     headers: { "X-Portal-Internal-Secret": portalInternalSecret },
     body: JSON.stringify({}),
+    signal: AbortSignal.timeout(60_000),
   });
   return res.json();
 }
@@ -403,7 +424,8 @@ export async function getBrainDumpHistory(
   const params = new URLSearchParams();
   if (cursor) params.set("cursor", cursor);
   const qs = params.toString();
-  const res = await akFetch(creds, `/brain-dump/history${qs ? `?${qs}` : ""}`);
+  const path = qs ? `/brain-dump/history?${qs}` : "/brain-dump/history";
+  const res = await akFetch(creds, path, { signal: AbortSignal.timeout(60_000) });
   const data = await res.json();
   const items = data.items ?? (Array.isArray(data) ? data : []);
   return { items, nextCursor: data.nextCursor, hasMore: !!data.nextCursor };
@@ -416,7 +438,7 @@ export async function getBrainDumpHistory(
  * @returns The requested BrainDumpDetailEntry parsed from the response body
  */
 export async function getBrainDumpEntry(creds: AkCreds, id: string): Promise<BrainDumpDetailEntry> {
-  const res = await akFetch(creds, `/brain-dump/history/${encodeURIComponent(id)}`);
+  const res = await akFetch(creds, `/brain-dump/history/${encodeURIComponent(id)}`, { signal: AbortSignal.timeout(60_000) });
   return res.json();
 }
 
@@ -432,6 +454,7 @@ export async function queryRag(creds: AkCreds, text: string, topK = 10): Promise
   const res = await akFetch(creds, "/rag/query", {
     method: "POST",
     body: JSON.stringify({ text, topK }),
+    signal: AbortSignal.timeout(60_000),
   });
   const data = await res.json();
   return data.results ?? [];
@@ -468,16 +491,16 @@ export async function runArticleCopilot(
  * @returns An object containing `indexedNotes` (the number of notes indexed), `lastIndexed` (ISO timestamp of the last indexing run or `null` if never indexed), and `model` (the name of the model used for RAG or `null` if unspecified).
  */
 export async function getRagStatus(creds: AkCreds): Promise<{ indexedNotes: number; lastIndexed: string | null; model: string | null }> {
-  const res = await akFetch(creds, "/rag/status");
+  const res = await akFetch(creds, "/rag/status", { signal: AbortSignal.timeout(60_000) });
   return res.json();
 }
 
 export async function triggerReindex(creds: AkCreds, noteId?: string): Promise<{ ok: boolean }> {
   if (noteId) {
-    const res = await akFetch(creds, `/rag/reindex/${noteId}`, { method: "POST" });
+    const res = await akFetch(creds, `/rag/reindex/${noteId}`, { method: "POST", signal: AbortSignal.timeout(60_000) });
     return res.json();
   }
-  const res = await akFetch(creds, "/rag/reindex", { method: "POST" });
+  const res = await akFetch(creds, "/rag/reindex", { method: "POST", signal: AbortSignal.timeout(60_000) });
   return res.json();
 }
 
@@ -528,13 +551,46 @@ export async function suggestRelationships(creds: AkCreds, text: string, noteId?
 }
 
 /**
+ * Fetches a relationship graph rooted at the given note from AllKnower.
+ *
+ * @param noteId - The ID of the center note to build the graph around
+ * @param depth - How many hops to traverse from the center note (default: 2)
+ * @param maxNodes - Maximum number of nodes to include in the graph (default: 50)
+ * @returns A `GraphResponse` containing nodes, edges, and metadata about the graph
+ * @throws ServiceError with code `SERVICE_ERROR` if the response does not match the expected schema
+ */
+export async function getRelationshipGraph(
+  creds: AkCreds,
+  noteId: string,
+  depth = 2,
+  maxNodes = 50,
+): Promise<GraphResponse> {
+  const params = new URLSearchParams({
+    depth: String(depth),
+    maxNodes: String(maxNodes),
+  });
+  const res = await akFetch(
+    creds,
+    `/suggest/graph/${encodeURIComponent(noteId)}?${params}`,
+    { signal: AbortSignal.timeout(30_000) },
+  );
+  const raw = await res.json();
+  const parsed = GraphResponseSchema.safeParse(raw);
+  if (!parsed.success) {
+    console.error("[getRelationshipGraph] AllKnower schema mismatch:", parsed.error.message);
+    throw new ServiceError("SERVICE_ERROR", 502, "AllKnower returned an unexpected response format.");
+  }
+  return parsed.data;
+}
+
+/**
  * Fetches autocomplete suggestions for the given query from AllKnower.
  *
  * @param q - The query string to autocomplete
  * @returns The response's `suggestions` array if present, otherwise an empty array.
  */
 export async function akFetchAutocomplete(creds: AkCreds, q: string): Promise<any[]> {
-  const res = await akFetch(creds, `/suggest/autocomplete?q=${encodeURIComponent(q)}`);
+  const res = await akFetch(creds, `/suggest/autocomplete?q=${encodeURIComponent(q)}`, { signal: AbortSignal.timeout(60_000) });
   const data = await res.json();
   return data.suggestions ?? [];
 }
@@ -594,7 +650,7 @@ export async function getGaps(creds: AkCreds): Promise<GapResult> {
  * @returns An object with `status`, `allcodex`, and `ollama` fields, each a string.
  */
 export async function getHealth(creds: AkCreds): Promise<{ status: string; allcodex: string; ollama: string }> {
-  const res = await akFetch(creds, "/health");
+  const res = await akFetch(creds, "/health", { signal: AbortSignal.timeout(60_000) });
   return res.json();
 }
 
@@ -609,6 +665,174 @@ export interface ModelChainConfig {
  * @returns A record mapping chain names to `ModelChainConfig` objects.
  */
 export async function getModelChains(creds: AkCreds): Promise<Record<string, ModelChainConfig>> {
-  const res = await akFetch(creds, "/config/models");
+  const res = await akFetch(creds, "/config/models", { signal: AbortSignal.timeout(60_000) });
   return res.json();
 }
+
+/**
+ * Fetches the relationship history for a given note from AllKnower.
+ *
+ * @param noteId - The ID of the note to fetch history for
+ * @param limit - Maximum number of entries to return (default: 20)
+ * @returns An object with `entries` array of relationship history records
+ * @throws ServiceError with code `SERVICE_ERROR` if the response does not match the expected schema
+ */
+export async function getRelationshipHistory(
+  creds: AkCreds,
+  noteId: string,
+  limit = 20,
+): Promise<{ entries: RelationHistoryEntry[] }> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  const res = await akFetch(
+    creds,
+    `/suggest/history/${encodeURIComponent(noteId)}?${params}`,
+    { signal: AbortSignal.timeout(60_000) },
+  );
+  const raw = await res.json();
+  const parsed = RelationHistoryResponseSchema.safeParse(raw);
+  if (!parsed.success) {
+    console.error("[getRelationshipHistory] schema mismatch:", parsed.error.message);
+    throw new ServiceError("SERVICE_ERROR", 502, "AllKnower returned an unexpected response format.");
+  }
+  return parsed.data;
+}
+
+/**
+ * Fetches LLM call and token metrics from AllKnower.
+ */
+export async function getMetricsLLM(creds: AkCreds): Promise<MetricsLLMResult> {
+  const res = await akFetch(creds, "/metrics/llm", { signal: AbortSignal.timeout(60_000) });
+  const raw = await res.json();
+  const parsed = MetricsLLMResultSchema.safeParse(raw);
+  if (!parsed.success) {
+    console.error("[getMetricsLLM] AllKnower schema mismatch:", parsed.error.message);
+    throw new ServiceError("SERVICE_ERROR", 502, "AllKnower returned an unexpected response format.");
+  }
+  return parsed.data;
+}
+
+export async function subscribeNotifications(
+  creds: AkCreds,
+  subscription: PushSubscriptionPayload,
+): Promise<{ ok: boolean }> {
+  const res = await akFetch(creds, "/notifications/subscribe", {
+    method: "POST",
+    body: JSON.stringify(subscription),
+    signal: AbortSignal.timeout(60_000),
+  });
+  return res.json();
+}
+
+export async function unsubscribeNotifications(creds: AkCreds, endpoint: string): Promise<{ ok: boolean }> {
+  const res = await akFetch(creds, "/notifications/unsubscribe", {
+    method: "DELETE",
+    body: JSON.stringify({ endpoint }),
+    signal: AbortSignal.timeout(60_000),
+  });
+  return res.json();
+}
+
+// ── Bulk Brain Dump ─────────────────────────────────────────────────────────
+
+export async function submitBrainDumpBatch(
+  creds: AkCreds,
+  items: Array<{ rawText: string; parentNoteId?: string; mode?: "auto" | "review" }>,
+): Promise<BrainDumpBatchSubmitResult> {
+  const res = await akFetch(creds, "/brain-dump/batch", {
+    method: "POST",
+    body: JSON.stringify({ items }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  const raw = await res.json();
+  const parsed = BrainDumpBatchSubmitResultSchema.safeParse(raw);
+  if (!parsed.success) {
+    console.error("[submitBrainDumpBatch] AllKnower schema mismatch:", parsed.error.message);
+    throw new ServiceError("SERVICE_ERROR", 502, "AllKnower returned an unexpected response format.");
+  }
+  return parsed.data;
+}
+
+export async function getBrainDumpBatch(creds: AkCreds, batchId: string): Promise<BrainDumpBatch> {
+  const res = await akFetch(creds, `/brain-dump/batch/${batchId}`, { signal: AbortSignal.timeout(60_000) });
+  const raw = await res.json();
+  const parsed = BrainDumpBatchSchema.safeParse(raw);
+  if (!parsed.success) {
+    console.error("[getBrainDumpBatch] AllKnower schema mismatch:", parsed.error.message);
+    throw new ServiceError("SERVICE_ERROR", 502, "AllKnower returned an unexpected response format.");
+  }
+  return parsed.data;
+}
+
+export async function cancelBrainDumpBatch(creds: AkCreds, batchId: string): Promise<{ cancelled: number }> {
+  const res = await akFetch(creds, `/brain-dump/batch/${batchId}`, { method: "DELETE", signal: AbortSignal.timeout(60_000) });
+  return res.json();
+}
+
+// ── Brain Dump Diffs ────────────────────────────────────────────────────────
+
+export async function getBrainDumpDiffs(creds: AkCreds, historyId: string): Promise<BrainDumpDiffsResponse> {
+  const res = await akFetch(creds, `/brain-dump/history/${historyId}/diffs`, { signal: AbortSignal.timeout(60_000) });
+  const raw = await res.json();
+  const parsed = BrainDumpDiffsResponseSchema.safeParse(raw);
+  if (!parsed.success) {
+    console.error("[getBrainDumpDiffs] AllKnower schema mismatch:", parsed.error.message);
+    throw new ServiceError("SERVICE_ERROR", 502, "AllKnower returned an unexpected response format.");
+  }
+  return parsed.data;
+}
+
+// ── Usage / Observability ─────────────────────────────────────────────────────
+
+export async function getUsageSummary(
+  creds: AkCreds,
+  from?: string,
+  to?: string,
+): Promise<UsageSummary> {
+  const params = new URLSearchParams();
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  const qs = params.toString();
+  const suffix = qs ? `?${qs}` : "";
+  const res = await akFetch(creds, `/usage/summary${suffix}`, { signal: AbortSignal.timeout(60_000) });
+  const raw = await res.json();
+  const parsed = UsageSummarySchema.safeParse(raw);
+  if (!parsed.success) {
+    console.error("[getUsageSummary] AllKnower schema mismatch:", parsed.error.message);
+    throw new ServiceError("SERVICE_ERROR", 502, "AllKnower returned an unexpected response format.");
+  }
+  return parsed.data;
+}
+
+export async function getUserBudget(creds: AkCreds): Promise<UserBudget> {
+  const res = await akFetch(creds, "/usage/budgets", { signal: AbortSignal.timeout(60_000) });
+  const raw = await res.json();
+  const parsed = UserBudgetSchema.safeParse(raw);
+  if (!parsed.success) {
+    console.error("[getUserBudget] AllKnower schema mismatch:", parsed.error.message);
+    throw new ServiceError("SERVICE_ERROR", 502, "AllKnower returned an unexpected response format.");
+  }
+  return parsed.data;
+}
+
+export async function putUserBudget(
+  creds: AkCreds,
+  budget: { dailyBudgetUsd?: number | null; monthlyBudgetUsd?: number | null; alertEmail?: string | null },
+): Promise<void> {
+  await akFetch(creds, "/usage/budgets", {
+    method: "PUT",
+    body: JSON.stringify(budget),
+    signal: AbortSignal.timeout(60_000),
+  });
+}
+
+export async function getUsageAlertStatus(creds: AkCreds): Promise<UsageAlertStatus> {
+  const res = await akFetch(creds, "/usage/alert-status", { signal: AbortSignal.timeout(60_000) });
+  const raw = await res.json();
+  const parsed = UsageAlertStatusSchema.safeParse(raw);
+  if (!parsed.success) {
+    console.error("[getUsageAlertStatus] AllKnower schema mismatch:", parsed.error.message);
+    throw new ServiceError("SERVICE_ERROR", 502, "AllKnower returned an unexpected response format.");
+  }
+  return parsed.data;
+}
+

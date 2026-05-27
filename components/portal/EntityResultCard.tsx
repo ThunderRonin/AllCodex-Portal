@@ -22,11 +22,11 @@ const ACTION_CONFIG: Record<EntityAction, {
   iconClass: string;
 }> = {
   create: {
-    borderClass: "border-l-[var(--accent)]",
-    bgClass: "bg-[var(--accent)]/5",
-    hoverClass: "hover:bg-[var(--accent)]/10",
+    borderClass: "border-l-accent",
+    bgClass: "bg-accent/5",
+    hoverClass: "hover:bg-accent/10",
     icon: Plus,
-    iconClass: "text-[var(--accent)]",
+    iconClass: "text-accent",
   },
   update: {
     borderClass: "border-l-primary/60",

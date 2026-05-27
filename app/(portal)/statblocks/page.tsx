@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Loader2, AlertCircle, BookOpen, Search, ChevronRight } from "lucide-react";
@@ -27,14 +27,54 @@ function crToNum(cr: string | undefined): number {
 }
 
 export default function StatblocksPage() {
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [crFilter, setCrFilter] = useState<"all" | "low" | "mid" | "high">("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [newlyCreatedId, setNewlyCreatedId] = useState<string | null>(null);
 
   const { data: statblocks, isLoading, isError } = useQuery<StatblockNote[]>({
     queryKey: ["statblocks"],
     queryFn: () => fetch("/api/statblocks").then((r) => r.json()),
     staleTime: 30_000,
+  });
+
+  const { mutate: createStatblock, isPending: isCreating } = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/lore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: "New Statblock",
+          loreType: "statblock",
+          templateId: "_template_statblock",
+          attributes: {
+            crName: "New Statblock",
+            challengeRating: "0",
+            crLevel: "0",
+            ac: "10",
+            hp: "10",
+            speed: "30 ft.",
+            str: "10",
+            dex: "10",
+            con: "10",
+            int: "10",
+            wis: "10",
+            cha: "10",
+          },
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: (data) => {
+      const noteId = data?.note?.noteId;
+      if (noteId) {
+        queryClient.invalidateQueries({ queryKey: ["statblocks"] });
+        setNewlyCreatedId(noteId);
+        setSelectedId(noteId);
+      }
+    },
   });
 
   const filtered = (statblocks ?? []).filter((n) => {
@@ -70,8 +110,22 @@ export default function StatblocksPage() {
               Statblock Library
             </span>
             {statblocks && (
-              <span className="ml-auto text-[10px] text-muted-foreground">{statblocks.length}</span>
+              <span className="text-[10px] text-muted-foreground ml-1">{statblocks.length}</span>
             )}
+            <button
+              onClick={() => createStatblock()}
+              disabled={isCreating}
+              className="ml-auto flex items-center gap-1 bg-amber-900/40 hover:bg-amber-900/60 border border-amber-800 text-[10px] text-amber-200 px-2 py-0.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isCreating ? (
+                <>
+                  <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                  Creating…
+                </>
+              ) : (
+                "+ New"
+              )}
+            </button>
           </div>
           <div className="relative mb-2">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
@@ -158,7 +212,14 @@ export default function StatblocksPage() {
           </div>
         ) : (
           <div className="p-6 max-w-2xl">
-            <StatblockCard note={selectedNote} />
+            <StatblockCard
+              key={selectedNote.noteId}
+              note={selectedNote}
+              initialIsEditing={selectedNote.noteId === newlyCreatedId}
+              onEditToggle={(editing) => {
+                if (!editing) setNewlyCreatedId(null);
+              }}
+            />
           </div>
         )}
       </div>

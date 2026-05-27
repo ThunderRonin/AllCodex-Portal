@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/portal/StatusBadge";
+import { BrowserNotificationsCard } from "@/components/portal/BrowserNotificationsCard";
+import { TokenBudgetCard } from "@/components/portal/TokenBudgetCard";
 import {
   CheckCircle2,
   Loader2,
@@ -622,8 +624,10 @@ export default function SettingsPage() {
         <div className="space-y-5">
           <AllKnowerCard initialStatus={status?.allknower} />
           <AllCodexCard initialStatus={status?.allcodex} />
+          <BrowserNotificationsCard />
           <PortalConfigCard />
           <ShareConfigCard />
+          <TokenBudgetCard />
           <DevDebugCard />
         </div>
       )}

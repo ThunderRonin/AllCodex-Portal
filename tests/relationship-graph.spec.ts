@@ -66,10 +66,10 @@ test.describe("Relationship Graph", () => {
     await expect(page.getByText("Sworn enemies.")).toBeVisible();
 
     // Click Apply on the AI suggestion
-    await page.getByRole("button", { name: "Apply" }).click();
+    await page.getByRole("button", { name: "Apply", exact: true }).click();
 
     // After applying, the suggestion disappears from the list (filtered out)
-    await expect(page.getByRole("button", { name: "Apply" })).not.toBeVisible();
+    await expect(page.getByRole("button", { name: "Apply", exact: true })).not.toBeVisible();
     expect(appliedRelation).toBe(true);
   });
 

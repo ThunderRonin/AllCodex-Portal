@@ -18,10 +18,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { ServiceBanner } from "@/components/portal/ServiceBanner";
+import type { SSEEvent } from "@/hooks/use-sse-stream";
 import { useSSEStream } from "@/hooks/use-sse-stream";
 import { fetchJsonOrThrow } from "@/lib/fetch-json";
 import { sanitizeLoreHtml } from "@/lib/sanitize";
 import { useCopilotStore } from "@/lib/stores/copilot-store";
+import { useNotificationStore } from "@/lib/stores/notification-store";
 import type { CopilotApplyResult, CopilotChatResponse, CopilotProposalTarget } from "@/lib/allknower-schemas";
 
 type ExistingTargetSnapshot = {
@@ -70,6 +72,50 @@ async function fetchTargetSnapshot(noteId: string): Promise<ExistingTargetSnapsh
     contentHtml,
     parentNoteIds: note.parentNoteIds ?? [],
   };
+}
+
+/**
+ * Processes a single SSE event from the copilot stream, delegating token
+ * accumulation, result handling, and error handling to the appropriate store
+ * and callback operations.
+ */
+function handleCopilotStreamEvent(
+  event: SSEEvent,
+  noteId: string,
+  store: ReturnType<typeof useCopilotStore.getState>,
+  accRef: { value: string },
+  callbacks: {
+    setLastResponse: (r: CopilotChatResponse) => void;
+    setIsRedirecting: (v: boolean) => void;
+    setRedirectDraft: (v: string) => void;
+    setErrorService: (s: "AllKnower" | "AllCodex") => void;
+    onWatchResolved: () => void;
+    watchId: string;
+  },
+): void {
+  if (event.event === "token") {
+    accRef.value += (event.data as { content: string }).content;
+    store.updateLastMessage(noteId, accRef.value);
+  } else if (event.event === "result") {
+    const response = event.data as CopilotChatResponse;
+    store.updateLastMessage(noteId, response.assistantMessage);
+    store.setPendingProposal(noteId, response.proposal ?? null);
+    if (response.sessionId) {
+      store.setSessionId(noteId, response.sessionId);
+    }
+    callbacks.setLastResponse(response);
+    callbacks.setIsRedirecting(false);
+    callbacks.setRedirectDraft("");
+    callbacks.onWatchResolved();
+    useNotificationStore.getState().complete(callbacks.watchId, { summary: "Assistant replied." });
+  } else if (event.event === "error") {
+    const errData = event.data as { error: string };
+    store.updateLastMessage(noteId, `Error: ${errData.error}`);
+    callbacks.setErrorService("AllKnower");
+    store.setLastError({ message: errData.error });
+    callbacks.onWatchResolved();
+    useNotificationStore.getState().fail(callbacks.watchId, { error: errData.error || "Copilot failed." });
+  }
 }
 
 /**
@@ -240,6 +286,7 @@ export function ArticleCopilot() {
   const hasConversation = messages.length > 0;
   const citations = useMemo(() => lastResponse?.citations ?? [], [lastResponse]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     if (!pendingProposal || !noteId) {
@@ -290,6 +337,18 @@ export function ArticleCopilot() {
       setDraft("");
     }
 
+    const myRequestId = ++requestIdRef.current;
+    const isStale = () => requestIdRef.current !== myRequestId;
+
+    const watchId = "copilot-" + Date.now();
+    useNotificationStore.getState().watch({
+      id: watchId,
+      kind: "copilot-turn",
+      title: "Copilot Chat",
+      href: window.location.pathname,
+    });
+    let watchResolved = false;
+
     const currentMessages = useCopilotStore.getState().conversations[noteId]?.messages || [];
     const nextMessages = [...currentMessages, { role: "user" as const, content }];
 
@@ -300,33 +359,38 @@ export function ArticleCopilot() {
 
     try {
       const sessionId = useCopilotStore.getState().conversations[noteId]?.sessionId;
-      let accumulated = "";
+      const accRef = { value: "" };
+      const storeState = useCopilotStore.getState();
+      const callbacks = {
+        setLastResponse,
+        setIsRedirecting,
+        setRedirectDraft,
+        setErrorService,
+        onWatchResolved: () => { watchResolved = true; },
+        watchId,
+      };
       for await (const event of stream(`/api/lore/${noteId}/copilot/stream`, { messages: nextMessages, sessionId: sessionId ?? undefined })) {
-        if (event.event === "token") {
-          accumulated += (event.data as { content: string }).content;
-          store.updateLastMessage(noteId, accumulated);
-        } else if (event.event === "result") {
-          const response = event.data as CopilotChatResponse;
-          store.updateLastMessage(noteId, response.assistantMessage);
-          store.setPendingProposal(noteId, response.proposal ?? null);
-          if (response.sessionId) {
-            store.setSessionId(noteId, response.sessionId);
-          }
-          setLastResponse(response);
-          setIsRedirecting(false);
-          setRedirectDraft("");
-        } else if (event.event === "error") {
-          const errData = event.data as { error: string };
-          store.updateLastMessage(noteId, `Error: ${errData.error}`);
-          setErrorService("AllKnower");
-          store.setLastError({ message: errData.error });
+        if (isStale()) break;
+        handleCopilotStreamEvent(event, noteId, storeState, accRef, callbacks);
+      }
+    } catch (error: any) {
+      if (isStale()) return;
+      if (error.name === "AbortError") {
+        watchResolved = true;
+        useNotificationStore.getState().dismiss(watchId);
+      } else {
+        setErrorService("AllKnower");
+        store.setLastError(error as { message: string });
+        watchResolved = true;
+        useNotificationStore.getState().fail(watchId, { error: error.message || "Copilot failed." });
+      }
+    } finally {
+      if (!isStale()) {
+        setIsSending(false);
+        if (!watchResolved) {
+          useNotificationStore.getState().complete(watchId, { summary: "Stream ended." });
         }
       }
-    } catch (error) {
-      setErrorService("AllKnower");
-      store.setLastError(error as { message: string });
-    } finally {
-      setIsSending(false);
     }
   }
 
@@ -341,6 +405,14 @@ export function ArticleCopilot() {
 
   async function applySelectedChanges() {
     if (!pendingProposal || selectedTargetIds.length === 0 || isApplying || !noteId) return;
+
+    const watchId = "copilot-apply-" + Date.now();
+    useNotificationStore.getState().watch({
+      id: watchId,
+      kind: "review-commit",
+      title: "Apply Proposal",
+      href: window.location.pathname,
+    });
 
     setIsApplying(true);
     store.setLastError(null);
@@ -372,9 +444,12 @@ export function ArticleCopilot() {
         void queryClient.invalidateQueries({ queryKey: ["backlinks", touchedNoteId] });
       }
       void queryClient.invalidateQueries({ queryKey: ["lore"] });
-    } catch (error) {
+
+      useNotificationStore.getState().complete(watchId, { summary: "Applied changes to AllCodex." });
+    } catch (error: any) {
       setErrorService("AllCodex");
       store.setLastError(error as { message: string });
+      useNotificationStore.getState().fail(watchId, { error: error.message || "Apply failed." });
     } finally {
       setIsApplying(false);
     }

@@ -240,6 +240,41 @@ export const BrainDumpAnyResultSchema = z.union([
   BrainDumpResultSchema,
 ]);
 
+export const GraphNodeSchema = z.object({
+  noteId: z.string(),
+  title: z.string(),
+  loreType: z.string(),
+  depth: z.number(),
+});
+
+export const GraphEdgeSchema = z.object({
+  sourceNoteId: z.string(),
+  targetNoteId: z.string(),
+  relationshipType: CanonicalRelationshipTypeSchema,
+});
+
+export const GraphResponseSchema = z.object({
+  nodes: z.array(GraphNodeSchema),
+  edges: z.array(GraphEdgeSchema),
+  centerNoteId: z.string(),
+  maxDepthReached: z.number(),
+  truncated: z.boolean(),
+});
+
+export const RelationHistoryEntrySchema = z.object({
+  id: z.string(),
+  sourceNoteId: z.string(),
+  targetNoteId: z.string(),
+  type: z.string(),
+  relationName: z.string().nullable(),
+  description: z.string().nullable(),
+  createdAt: z.string(),
+});
+
+export const RelationHistoryResponseSchema = z.object({
+  entries: z.array(RelationHistoryEntrySchema),
+});
+
 // Derived TypeScript types — replace manual interfaces in allknower-server.ts
 export type ConsistencyResult = z.infer<typeof ConsistencyResultSchema>;
 export type GapResult = z.infer<typeof GapResultSchema>;
@@ -264,3 +299,181 @@ export type BrainDumpReviewResult = z.infer<typeof BrainDumpReviewResultSchema>;
 export type BrainDumpInboxResult = z.infer<typeof BrainDumpInboxResultSchema>;
 export type BrainDumpAnyResult = z.infer<typeof BrainDumpAnyResultSchema>;
 export type ProposedEntity = z.infer<typeof ProposedEntitySchema>;
+export type GraphNode = z.infer<typeof GraphNodeSchema>;
+export type GraphEdge = z.infer<typeof GraphEdgeSchema>;
+export type GraphResponse = z.infer<typeof GraphResponseSchema>;
+export type RelationHistoryEntry = z.infer<typeof RelationHistoryEntrySchema>;
+
+// ── Metrics / Observability ──────────────────────────────────────────────────
+
+export const DailyBurnEntrySchema = z.object({
+  date: z.string(),
+  tokens: z.number(),
+  count: z.number(),
+});
+
+export const TaskCostEntrySchema = z.object({
+  task: z.string(),
+  tokens: z.number(),
+  count: z.number(),
+  avgLatency: z.number(),
+});
+
+export const ModelDistEntrySchema = z.object({
+  model: z.string(),
+  tokens: z.number(),
+  count: z.number(),
+});
+
+export const LatencyStatEntrySchema = z.object({
+  task: z.string(),
+  model: z.string(),
+  count: z.number(),
+  avg: z.number(),
+  p50: z.number(),
+  p90: z.number(),
+  p95: z.number(),
+});
+
+export const MetricsLLMResultSchema = z.object({
+  summary: z.object({
+    totalTokens: z.number(),
+    totalRequests: z.number(),
+    avgLatency: z.number(),
+  }),
+  dailyBurn: z.array(DailyBurnEntrySchema),
+  taskCosts: z.array(TaskCostEntrySchema),
+  modelDistribution: z.array(ModelDistEntrySchema),
+  latencyStats: z.array(LatencyStatEntrySchema),
+});
+
+export type MetricsLLMResult = z.infer<typeof MetricsLLMResultSchema>;
+
+// ── Push Notifications ───────────────────────────────────────────────────────
+
+export const PushSubscriptionPayloadSchema = z.object({
+  endpoint: z.string().min(1),
+  keys: z.object({
+    p256dh: z.string().min(1),
+    auth: z.string().min(1),
+  }),
+});
+
+export type PushSubscriptionPayload = z.infer<typeof PushSubscriptionPayloadSchema>;
+
+// ── Bulk Brain Dump ─────────────────────────────────────────────────────────
+
+export const BrainDumpJobSchema = z.object({
+  id: z.string(),
+  batchId: z.string(),
+  position: z.number(),
+  status: z.enum(["queued", "running", "done", "failed", "cancelled"]),
+  rawText: z.string(),
+  error: z.string().nullable(),
+  resultHistoryId: z.string().nullable(),
+  createdAt: z.string(),
+  startedAt: z.string().nullable(),
+  finishedAt: z.string().nullable(),
+});
+
+export const BrainDumpBatchSchema = z.object({
+  batchId: z.string(),
+  jobs: z.array(BrainDumpJobSchema),
+  counts: z.record(z.string(), z.number()),
+  terminal: z.boolean(),
+});
+
+export const BrainDumpBatchSubmitResultSchema = z.object({
+  batchId: z.string(),
+  jobs: z.array(z.object({ id: z.string(), position: z.number() })),
+});
+
+export type BrainDumpJob = z.infer<typeof BrainDumpJobSchema>;
+export type BrainDumpBatch = z.infer<typeof BrainDumpBatchSchema>;
+export type BrainDumpBatchSubmitResult = z.infer<typeof BrainDumpBatchSubmitResultSchema>;
+
+// ── Brain Dump Diffs ────────────────────────────────────────────────────────
+
+export const BrainDumpDiffSchema = z.object({
+  noteId: z.string(),
+  action: z.enum(["created", "updated", "noop"]),
+  revisionIdBefore: z.string().nullable(),
+  revisionIdAfter: z.string().nullable(),
+  contentBefore: z.string().nullable(),
+  contentAfter: z.string().nullable(),
+});
+
+export const BrainDumpDiffsResponseSchema = z.object({
+  diffs: z.array(BrainDumpDiffSchema),
+});
+
+export type BrainDumpDiff = z.infer<typeof BrainDumpDiffSchema>;
+export type BrainDumpDiffsResponse = z.infer<typeof BrainDumpDiffsResponseSchema>;
+
+// ── Usage / Observability ────────────────────────────────────────────────────
+
+export const UsageDailyBurnEntrySchema = z.object({
+  date: z.string(),
+  tokens: z.number(),
+  cost: z.number(),
+  count: z.number(),
+});
+
+export const UsageTaskCostEntrySchema = z.object({
+  task: z.string(),
+  tokens: z.number(),
+  cost: z.number(),
+  count: z.number(),
+  avgLatency: z.number(),
+});
+
+export const UsageModelDistEntrySchema = z.object({
+  model: z.string(),
+  tokens: z.number(),
+  cost: z.number(),
+  count: z.number(),
+});
+
+export const UsageLatencyStatEntrySchema = z.object({
+  task: z.string(),
+  model: z.string(),
+  count: z.number(),
+  avg: z.number(),
+  p50: z.number(),
+  p90: z.number(),
+  p95: z.number(),
+  p99: z.number(),
+});
+
+export const UsageSummarySchema = z.object({
+  summary: z.object({
+    totalTokens: z.number(),
+    totalRequests: z.number(),
+    avgLatency: z.number(),
+    totalCostUsd: z.number(),
+  }),
+  dailyBurn: z.array(UsageDailyBurnEntrySchema),
+  taskCosts: z.array(UsageTaskCostEntrySchema),
+  modelDistribution: z.array(UsageModelDistEntrySchema),
+  latencyStats: z.array(UsageLatencyStatEntrySchema),
+});
+
+export const UserBudgetSchema = z.object({
+  dailyBudgetUsd: z.number().nullable(),
+  monthlyBudgetUsd: z.number().nullable(),
+  alertEmail: z.string().nullable(),
+});
+
+export const UsageAlertStatusSchema = z.object({
+  configured: z.boolean(),
+  dailySpendUsd: z.number(),
+  monthlySpendUsd: z.number(),
+  dailyBudgetUsd: z.number().nullable(),
+  monthlyBudgetUsd: z.number().nullable(),
+  dailyOverBudget: z.boolean(),
+  monthlyOverBudget: z.boolean(),
+});
+
+export type UsageSummary = z.infer<typeof UsageSummarySchema>;
+export type UserBudget = z.infer<typeof UserBudgetSchema>;
+export type UsageAlertStatus = z.infer<typeof UsageAlertStatusSchema>;
