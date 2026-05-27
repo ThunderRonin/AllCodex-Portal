@@ -62,6 +62,147 @@ interface BrainDumpState {
 
 let activeAbortController: AbortController | null = null;
 
+// ---------------------------------------------------------------------------
+// SSE helpers (module-level to reset SonarCloud nesting depth)
+// ---------------------------------------------------------------------------
+
+interface SSEEventHandlers {
+  onStatus: (data: any) => void;
+  onToken: (data: { content: string }) => void;
+  onDone: (data: { raw: string }) => void;
+  onError: (data: { error?: string }) => void;
+}
+
+function handleDonePayload(
+  raw: string,
+  setResult: (r: BrainDumpResultNormalized | null) => void,
+  setText: (t: string) => void,
+  queryClient: any | undefined,
+  runConsistencyCheck: ((ids: string[]) => void) | undefined,
+  watchId: string,
+): void {
+  try {
+    const parsed = JSON.parse(raw);
+    const normalized = {
+      mode: "auto" as const,
+      summary: parsed.summary,
+      created: parsed.created ?? [],
+      updated: parsed.updated ?? [],
+      skipped: parsed.skipped ?? [],
+      duplicates: parsed.duplicates,
+    };
+    setResult(normalized);
+    setText("");
+
+    if (queryClient) {
+      queryClient.invalidateQueries({ queryKey: ["brain-dump-history"] });
+      queryClient.invalidateQueries({ queryKey: ["lore"] });
+    }
+
+    const newNoteIds = [
+      ...normalized.created.map((e: any) => e.noteId),
+      ...normalized.updated.map((e: any) => e.noteId),
+    ];
+    if (runConsistencyCheck && newNoteIds.length > 0) {
+      runConsistencyCheck(newNoteIds);
+    }
+
+    useNotificationStore.getState().complete(watchId, {
+      summary:
+        "Created " +
+        normalized.created.length +
+        ", updated " +
+        normalized.updated.length +
+        " lore entries.",
+      href: "/brain-dump",
+    });
+  } catch (err) {
+    console.error("[brain-dump-store] failed to parse done payload", err);
+  }
+}
+
+function handleErrorEvent(
+  data: { error?: string },
+  setStreamStatus: (s: { stage: string; message: string } | null) => void,
+  setStreamError: (err: string) => void,
+  watchId: string,
+): void {
+  const errMsg = data.error || "Ingestion failed";
+  setStreamStatus({ stage: "error", message: errMsg });
+  setStreamError(errMsg);
+  useNotificationStore.getState().fail(watchId, { error: errMsg });
+}
+
+function processSSELine(
+  rawLine: string,
+  ctx: { currentEvent: string },
+  handlers: SSEEventHandlers,
+): void {
+  const line = rawLine.endsWith("\r") ? rawLine.slice(0, -1) : rawLine;
+
+  if (line.startsWith("event: ")) {
+    ctx.currentEvent = line.slice(7).trim();
+    return;
+  }
+
+  if (line === "") {
+    ctx.currentEvent = "message";
+    return;
+  }
+
+  if (!line.startsWith("data: ")) {
+    return;
+  }
+
+  let parsedData: any;
+  try {
+    parsedData = JSON.parse(line.slice(6));
+  } catch {
+    parsedData = line.slice(6);
+  }
+
+  const dispatch: Record<string, ((d: any) => void) | undefined> = {
+    status: handlers.onStatus,
+    token: handlers.onToken,
+    done: handlers.onDone,
+    error: handlers.onError,
+  };
+  dispatch[ctx.currentEvent]?.(parsedData);
+
+  ctx.currentEvent = "message";
+}
+
+async function readSSEStream(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  ctx: { currentEvent: string },
+  handlers: SSEEventHandlers,
+): Promise<void> {
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+
+    if (done) {
+      buffer += decoder.decode();
+      if (buffer.length > 0) {
+        for (const line of buffer.split("\n")) {
+          processSSELine(line, ctx, handlers);
+        }
+      }
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      processSSELine(line, ctx, handlers);
+    }
+  }
+}
+
 export const useBrainDumpStore = create<BrainDumpState>()(
   persist(
     (set, get) => ({
@@ -155,6 +296,15 @@ export const useBrainDumpStore = create<BrainDumpState>()(
         const controller = new AbortController();
         activeAbortController = controller;
 
+        const setStreamError = (err: string) => set({ streamError: err });
+
+        const handlers: SSEEventHandlers = {
+          onStatus: setStreamStatus,
+          onToken: (d) => appendStreamToken(d.content),
+          onDone: (d) => handleDonePayload(d.raw, setResult, setText, queryClient, runConsistencyCheck, watchId),
+          onError: (d) => handleErrorEvent(d, setStreamStatus, setStreamError, watchId),
+        };
+
         try {
           const res = await fetch("/api/brain-dump/stream", {
             method: "POST",
@@ -167,101 +317,15 @@ export const useBrainDumpStore = create<BrainDumpState>()(
             throw new Error(`Stream failed: ${res.status}`);
           }
 
-          const reader = res.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = "";
-          let currentEvent = "message";
-
-          const processLine = (rawLine: string) => {
-            const line = rawLine.endsWith("\r") ? rawLine.slice(0, -1) : rawLine;
-            if (line.startsWith("event: ")) {
-              currentEvent = line.slice(7).trim();
-            } else if (line.startsWith("data: ")) {
-              let parsedData: any;
-              try {
-                parsedData = JSON.parse(line.slice(6));
-              } catch {
-                parsedData = line.slice(6);
-              }
-
-              if (currentEvent === "status") {
-                setStreamStatus(parsedData);
-              } else if (currentEvent === "token") {
-                appendStreamToken(parsedData.content);
-              } else if (currentEvent === "done") {
-                try {
-                  const parsed = JSON.parse(parsedData.raw);
-                  const normalized = {
-                    mode: "auto" as const,
-                    summary: parsed.summary,
-                    created: parsed.created ?? [],
-                    updated: parsed.updated ?? [],
-                    skipped: parsed.skipped ?? [],
-                    duplicates: parsed.duplicates,
-                  };
-                  setResult(normalized);
-                  setText("");
-
-                  if (queryClient) {
-                    queryClient.invalidateQueries({ queryKey: ["brain-dump-history"] });
-                    queryClient.invalidateQueries({ queryKey: ["lore"] });
-                  }
-
-                  const newNoteIds = [
-                    ...normalized.created.map((e: any) => e.noteId),
-                    ...normalized.updated.map((e: any) => e.noteId),
-                  ];
-                  if (runConsistencyCheck && newNoteIds.length > 0) {
-                    runConsistencyCheck(newNoteIds);
-                  }
-
-                  useNotificationStore.getState().complete(watchId, {
-                    summary: "Created " + normalized.created.length + ", updated " + normalized.updated.length + " lore entries.",
-                    href: "/brain-dump",
-                  });
-                } catch (err) {
-                  console.error("[brain-dump-store] failed to parse done payload", err);
-                }
-              } else if (currentEvent === "error") {
-                const errMsg = parsedData.error || "Ingestion failed";
-                setStreamStatus({ stage: "error", message: errMsg });
-                set({ streamError: errMsg });
-                useNotificationStore.getState().fail(watchId, { error: errMsg });
-              }
-
-              currentEvent = "message";
-            } else if (line === "") {
-              currentEvent = "message";
-            }
-          };
-
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) {
-              buffer += decoder.decode();
-              if (buffer.length > 0) {
-                for (const line of buffer.split("\n")) {
-                  processLine(line);
-                }
-              }
-              break;
-            }
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split("\n");
-            buffer = lines.pop() ?? "";
-
-            for (const line of lines) {
-              processLine(line);
-            }
-          }
+          const ctx = { currentEvent: "message" };
+          await readSSEStream(res.body.getReader(), ctx, handlers);
         } catch (err: any) {
           if (err.name === "AbortError") {
             useNotificationStore.getState().dismiss(watchId);
           } else {
             const errMsg = err instanceof Error ? err.message : "Stream failed";
             setStreamStatus({ stage: "error", message: errMsg });
-            set({ streamError: errMsg });
+            setStreamError(errMsg);
             useNotificationStore.getState().fail(watchId, { error: errMsg });
           }
         } finally {

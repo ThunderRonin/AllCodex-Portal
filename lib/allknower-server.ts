@@ -424,7 +424,8 @@ export async function getBrainDumpHistory(
   const params = new URLSearchParams();
   if (cursor) params.set("cursor", cursor);
   const qs = params.toString();
-  const res = await akFetch(creds, `/brain-dump/history${qs ? `?${qs}` : ""}`, { signal: AbortSignal.timeout(60_000) });
+  const path = qs ? `/brain-dump/history?${qs}` : "/brain-dump/history";
+  const res = await akFetch(creds, path, { signal: AbortSignal.timeout(60_000) });
   const data = await res.json();
   const items = data.items ?? (Array.isArray(data) ? data : []);
   return { items, nextCursor: data.nextCursor, hasMore: !!data.nextCursor };

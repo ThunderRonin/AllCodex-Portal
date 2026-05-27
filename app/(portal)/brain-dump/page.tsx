@@ -33,6 +33,7 @@ import {
   Cpu,
 } from "lucide-react";
 import Link from "next/link";
+import { readFileAsText } from "@/lib/read-file-text";
 import { ServiceBanner } from "@/components/portal/ServiceBanner";
 import { parseStreamingEntities } from "@/lib/parse-streaming-entities";
 import {
@@ -480,19 +481,14 @@ export default function BrainDumpPage() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
-    const filesArray = Array.from(e.target.files);
-    
-    filesArray.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const textContent = event.target?.result as string;
+    for (const file of Array.from(e.target.files)) {
+      readFileAsText(file).then((textContent) => {
         setBulkFiles((prev) => [
           ...prev,
-          { name: file.name, content: textContent, status: "pending" },
+          { name: file.name, content: textContent, status: "pending" as const },
         ]);
-      };
-      reader.readAsText(file);
-    });
+      });
+    }
   };
 
   const handleAddPastedBulk = () => {

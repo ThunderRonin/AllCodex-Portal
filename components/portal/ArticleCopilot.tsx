@@ -18,6 +18,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { ServiceBanner } from "@/components/portal/ServiceBanner";
+import type { SSEEvent } from "@/hooks/use-sse-stream";
 import { useSSEStream } from "@/hooks/use-sse-stream";
 import { fetchJsonOrThrow } from "@/lib/fetch-json";
 import { sanitizeLoreHtml } from "@/lib/sanitize";
@@ -71,6 +72,50 @@ async function fetchTargetSnapshot(noteId: string): Promise<ExistingTargetSnapsh
     contentHtml,
     parentNoteIds: note.parentNoteIds ?? [],
   };
+}
+
+/**
+ * Processes a single SSE event from the copilot stream, delegating token
+ * accumulation, result handling, and error handling to the appropriate store
+ * and callback operations.
+ */
+function handleCopilotStreamEvent(
+  event: SSEEvent,
+  noteId: string,
+  store: ReturnType<typeof useCopilotStore.getState>,
+  accRef: { value: string },
+  callbacks: {
+    setLastResponse: (r: CopilotChatResponse) => void;
+    setIsRedirecting: (v: boolean) => void;
+    setRedirectDraft: (v: string) => void;
+    setErrorService: (s: "AllKnower" | "AllCodex") => void;
+    onWatchResolved: () => void;
+    watchId: string;
+  },
+): void {
+  if (event.event === "token") {
+    accRef.value += (event.data as { content: string }).content;
+    store.updateLastMessage(noteId, accRef.value);
+  } else if (event.event === "result") {
+    const response = event.data as CopilotChatResponse;
+    store.updateLastMessage(noteId, response.assistantMessage);
+    store.setPendingProposal(noteId, response.proposal ?? null);
+    if (response.sessionId) {
+      store.setSessionId(noteId, response.sessionId);
+    }
+    callbacks.setLastResponse(response);
+    callbacks.setIsRedirecting(false);
+    callbacks.setRedirectDraft("");
+    callbacks.onWatchResolved();
+    useNotificationStore.getState().complete(callbacks.watchId, { summary: "Assistant replied." });
+  } else if (event.event === "error") {
+    const errData = event.data as { error: string };
+    store.updateLastMessage(noteId, `Error: ${errData.error}`);
+    callbacks.setErrorService("AllKnower");
+    store.setLastError({ message: errData.error });
+    callbacks.onWatchResolved();
+    useNotificationStore.getState().fail(callbacks.watchId, { error: errData.error || "Copilot failed." });
+  }
 }
 
 /**
@@ -314,32 +359,19 @@ export function ArticleCopilot() {
 
     try {
       const sessionId = useCopilotStore.getState().conversations[noteId]?.sessionId;
-      let accumulated = "";
+      const accRef = { value: "" };
+      const storeState = useCopilotStore.getState();
+      const callbacks = {
+        setLastResponse,
+        setIsRedirecting,
+        setRedirectDraft,
+        setErrorService,
+        onWatchResolved: () => { watchResolved = true; },
+        watchId,
+      };
       for await (const event of stream(`/api/lore/${noteId}/copilot/stream`, { messages: nextMessages, sessionId: sessionId ?? undefined })) {
         if (isStale()) break;
-        if (event.event === "token") {
-          accumulated += (event.data as { content: string }).content;
-          store.updateLastMessage(noteId, accumulated);
-        } else if (event.event === "result") {
-          const response = event.data as CopilotChatResponse;
-          store.updateLastMessage(noteId, response.assistantMessage);
-          store.setPendingProposal(noteId, response.proposal ?? null);
-          if (response.sessionId) {
-            store.setSessionId(noteId, response.sessionId);
-          }
-          setLastResponse(response);
-          setIsRedirecting(false);
-          setRedirectDraft("");
-          watchResolved = true;
-          useNotificationStore.getState().complete(watchId, { summary: "Assistant replied." });
-        } else if (event.event === "error") {
-          const errData = event.data as { error: string };
-          store.updateLastMessage(noteId, `Error: ${errData.error}`);
-          setErrorService("AllKnower");
-          store.setLastError({ message: errData.error });
-          watchResolved = true;
-          useNotificationStore.getState().fail(watchId, { error: errData.error || "Copilot failed." });
-        }
+        handleCopilotStreamEvent(event, noteId, storeState, accRef, callbacks);
       }
     } catch (error: any) {
       if (isStale()) return;

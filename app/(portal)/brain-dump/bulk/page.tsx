@@ -20,6 +20,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
+import { readFileAsText } from "@/lib/read-file-text";
 
 interface StagedItem {
   id: string;
@@ -55,17 +56,16 @@ export default function BulkBrainDumpPage() {
   const [error, setError] = useState<string | null>(null);
 
   const handleFiles = useCallback((files: FileList) => {
-    Array.from(files).forEach((file) => {
-      if (!file.name.endsWith(".txt") && !file.name.endsWith(".md")) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = e.target?.result as string;
+    const validFiles = Array.from(files).filter(
+      (f) => f.name.endsWith(".txt") || f.name.endsWith(".md"),
+    );
+    for (const file of validFiles) {
+      readFileAsText(file).then((text) => {
         if (text.trim()) {
           setStaged((prev) => [...prev, { id: crypto.randomUUID(), rawText: text.trim(), fileName: file.name }]);
         }
-      };
-      reader.readAsText(file);
-    });
+      });
+    }
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
