@@ -14,7 +14,7 @@
     "check": "tsc --noEmit && vitest run"
   },
   "dependencies": {
-    "@blocknote/core": "^0.47.3",
+    "@blocknote/core": "^0.51.3",
     "@blocknote/react": "^0.47.3",
     "@blocknote/shadcn": "^0.47.3",
     "@tanstack/react-query": "^5.100.14",
