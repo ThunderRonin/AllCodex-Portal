@@ -23,9 +23,9 @@
         "next": "16.2.6",
         "next-themes": "^0.4.6",
         "radix-ui": "^1.4.3",
-        "react": "^19.2.4",
+        "react": "^19.2.7",
         "react-arborist": "^3.8.0",
-        "react-dom": "^19.2.4",
+        "react-dom": "^19.2.7",
         "tailwind-merge": "^3.5.0",
         "tippy.js": "^6.3.7",
         "vaul": "^1.1.2",
@@ -1359,7 +1359,7 @@
 
     "raw-body": ["raw-body@3.0.2", "", { "dependencies": { "bytes": "~3.1.2", "http-errors": "~2.0.1", "iconv-lite": "~0.7.0", "unpipe": "~1.0.0" } }, "sha512-K5zQjDllxWkf7Z5xJdV0/B0WTNqx6vxG70zJE4N0kBs4LovmEYWJzQGxC9bS9RAKu3bgM40lrd5zoLJ12MQ5BA=="],
 
-    "react": ["react@19.2.4", "", {}, "sha512-9nfp2hYpCwOjAN+8TZFGhtWEwgvWHXqESH8qT89AT/lWklpLON22Lc8pEtnpsZz7VmawabSU0gCjnj8aC0euHQ=="],
+    "react": ["react@19.2.7", "", {}, "sha512-HNe9WslTbXmFK8o8cmwgAeJFSBvt1bPdHCVKtaaV+WlAN36mpT4hcRpwbf3fY56ar2oIXzsBpOAiIRHAdY0OlQ=="],
 
     "react-arborist": ["react-arborist@3.8.0", "", { "dependencies": { "react-dnd": "^14.0.3", "react-dnd-html5-backend": "^14.0.3", "react-window": "^1.8.11", "redux": "^5.0.0", "use-sync-external-store": "^1.2.0" }, "peerDependencies": { "react": ">= 16.14", "react-dom": ">= 16.14" } }, "sha512-66UQK2mWtodjkHg4efiIYjQt0VlFhQ4LXTphcqHi0+1Jc7hAxcxAC1SbmCUCpZYUW7C+14WgsnYgBRqG0AYb1A=="],
 
@@ -1367,7 +1367,7 @@
 
     "react-dnd-html5-backend": ["react-dnd-html5-backend@14.1.0", "", { "dependencies": { "dnd-core": "14.0.1" } }, "sha512-6ONeqEC3XKVf4eVmMTe0oPds+c5B9Foyj8p/ZKLb7kL2qh9COYxiBHv3szd6gztqi/efkmriywLUVlPotqoJyw=="],
 
-    "react-dom": ["react-dom@19.2.4", "", { "dependencies": { "scheduler": "^0.27.0" }, "peerDependencies": { "react": "^19.2.4" } }, "sha512-AXJdLo8kgMbimY95O2aKQqsz2iWi9jMgKJhRBAxECE4IFxfcazB2LmzloIoibJI3C12IlY20+KFaLv+71bUJeQ=="],
+    "react-dom": ["react-dom@19.2.7", "", { "dependencies": { "scheduler": "^0.27.0" }, "peerDependencies": { "react": "^19.2.7" } }, "sha512-t0BRVXvbiE/o20Hfw669rLbMCDWtYZLvmJigy2f0MxsXF+71pxhR3xOkspmsO8h3ZlNzyibAmtCa3l4lYKk6gQ=="],
 
     "react-hook-form": ["react-hook-form@7.72.0", "", { "peerDependencies": { "react": "^16.8.0 || ^17 || ^18 || ^19" } }, "sha512-V4v6jubaf6JAurEaVnT9aUPKFbNtDgohj5CIgVGyPHvT9wRx5OZHVjz31GsxnPNI278XMu+ruFz+wGOscHaLKw=="],
 
