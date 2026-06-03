@@ -2,7 +2,7 @@
 
 A web portal for [AllCodex](https://github.com/ThunderRonin/AllCodex) (a customized TriliumNext instance) and [AllKnower](https://github.com/ThunderRonin/AllKnower), the AI knowledge service that powers it. Built with Next.js 16, shadcn/ui, and TanStack Query.
 
-The portal gives you a clean interface for browsing lore, running brain dumps, and using AI tools — without opening the full AllCodex desktop app.
+The portal gives you a clean interface for browsing lore, running brain dumps, and using AI tools — the only user-facing surface in the AllCodex stack.
 
 ## Features
 
