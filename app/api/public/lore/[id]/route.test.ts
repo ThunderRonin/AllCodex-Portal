@@ -48,7 +48,7 @@ describe('/api/public/lore/[id]', () => {
       title: 'Public Lore',
       contentHtml: '<p>Player</p>',
     });
-    expect(global.fetch).toHaveBeenCalledWith('http://localhost:8080/share/public-1');
+    expect(global.fetch).toHaveBeenCalledWith('http://localhost:8080/share/public-1', expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(getPublicEtapiCreds).not.toHaveBeenCalled();
     expect(getNote).not.toHaveBeenCalled();
     expect(getNoteContent).not.toHaveBeenCalled();

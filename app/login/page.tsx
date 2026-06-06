@@ -1,13 +1,13 @@
 "use client";
 
-import { Suspense } from "react";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Lock, Scroll } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { safeNextPath } from "@/lib/safe-next-path";
 
 function LoginForm() {
   const router = useRouter();
@@ -29,7 +29,7 @@ function LoginForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message ?? data.error ?? "Login failed");
-      router.replace(searchParams.get("next") || "/dashboard");
+      router.replace(safeNextPath(searchParams.get("next")));
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));

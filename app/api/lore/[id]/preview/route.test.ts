@@ -79,7 +79,7 @@ describe('/api/lore/[id]/preview', () => {
 
       expect(res.status).toBe(200);
       expect(res.body).toBe('PLAYER: <p>player content</p>');
-      expect(global.fetch).toHaveBeenCalledWith('http://localhost:8080/share/123');
+      expect(global.fetch).toHaveBeenCalledWith('http://localhost:8080/share/123', expect.objectContaining({ signal: expect.any(AbortSignal) }));
       expect(getNoteContent).not.toHaveBeenCalled();
     });
 

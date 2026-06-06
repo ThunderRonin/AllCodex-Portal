@@ -1,5 +1,7 @@
 import { ServiceError } from "./route-error";
 
+const CORE_SHARE_FETCH_TIMEOUT_MS = 8_000;
+
 export interface CoreShareNote {
   noteId: string;
   title: string;
@@ -20,12 +22,37 @@ function normalizeBaseUrl(baseUrl: string): string {
   return baseUrl.slice(0, end);
 }
 
-async function fetchCoreJson(baseUrl: string, path: string): Promise<unknown | null> {
+function isAbortError(error: unknown): boolean {
+  return Boolean(
+    error &&
+      typeof error === "object" &&
+      "name" in error &&
+      (error as { name?: unknown }).name === "AbortError"
+  );
+}
+
+async function fetchWithTimeout(url: string): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), CORE_SHARE_FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw new ServiceError("UNREACHABLE", 503, `AllCodex did not respond before ${CORE_SHARE_FETCH_TIMEOUT_MS}ms at ${url}`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function fetchCoreJson(baseUrl: string, path: string): Promise<unknown> {
   let response: Response;
   const url = `${normalizeBaseUrl(baseUrl)}${path}`;
   try {
-    response = await fetch(url);
-  } catch {
+    response = await fetchWithTimeout(url);
+  } catch (error) {
+    if (error instanceof ServiceError) throw error;
     throw new ServiceError("UNREACHABLE", 503, `AllCodex is unreachable at ${baseUrl}`);
   }
 
@@ -70,8 +97,9 @@ export async function getCoreShareNoteAccess(baseUrl: string, noteId: string): P
   const encodedNoteId = encodeURIComponent(noteId);
   let response: Response;
   try {
-    response = await fetch(`${normalizeBaseUrl(baseUrl)}/share/api/notes/${encodedNoteId}`);
-  } catch {
+    response = await fetchWithTimeout(`${normalizeBaseUrl(baseUrl)}/share/api/notes/${encodedNoteId}`);
+  } catch (error) {
+    if (error instanceof ServiceError) throw error;
     throw new ServiceError("UNREACHABLE", 503, `AllCodex is unreachable at ${baseUrl}`);
   }
 

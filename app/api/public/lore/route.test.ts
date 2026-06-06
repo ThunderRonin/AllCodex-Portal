@@ -48,7 +48,7 @@ describe('/api/public/lore', () => {
       title: 'Shared Root',
       contentHtml: '<p>Player archive</p>',
     });
-    expect(global.fetch).toHaveBeenCalledWith('http://localhost:8080/share/');
+    expect(global.fetch).toHaveBeenCalledWith('http://localhost:8080/share/', expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(getPublicEtapiCreds).not.toHaveBeenCalled();
     expect(searchNotes).not.toHaveBeenCalled();
   });
