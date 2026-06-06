@@ -7,9 +7,49 @@ export interface DiffLine {
   text: string;
 }
 
+function stripHtmlTagsToSpaces(html: string): string {
+  let plain = "";
+  let insideTag = false;
+
+  for (const char of html) {
+    if (char === "<") {
+      if (!insideTag) plain += " ";
+      insideTag = true;
+      continue;
+    }
+
+    if (char === ">") {
+      insideTag = false;
+      continue;
+    }
+
+    if (!insideTag) plain += char;
+  }
+
+  return plain;
+}
+
+function collapseExtraNewlines(text: string): string {
+  let collapsed = "";
+  let newlineRun = 0;
+
+  for (const char of text) {
+    if (char === "\n") {
+      newlineRun += 1;
+      if (newlineRun <= 2) collapsed += char;
+      continue;
+    }
+
+    newlineRun = 0;
+    collapsed += char;
+  }
+
+  return collapsed;
+}
+
 export function htmlToPlain(html: string): string {
-  if (typeof window === "undefined") {
-    return html.replace(/<[^>]*>/g, " ");
+  if (typeof globalThis.window === "undefined") {
+    return stripHtmlTagsToSpaces(html);
   }
   try {
     const parser = new DOMParser();
@@ -26,9 +66,9 @@ export function htmlToPlain(html: string): string {
       }
     });
 
-    return doc.body.textContent?.trim().replace(/\n{3,}/g, "\n\n") || "";
+    return collapseExtraNewlines(doc.body.textContent?.trim() || "");
   } catch {
-    return html.replace(/<[^>]*>/g, " ");
+    return stripHtmlTagsToSpaces(html);
   }
 }
 
@@ -37,7 +77,8 @@ export function computeLineDiff(before: string, after: string): DiffLine[] {
   const result: DiffLine[] = [];
 
   for (const change of changes) {
-    const lines = change.value.replace(/\n$/, "").split("\n");
+    const value = change.value.endsWith("\n") ? change.value.slice(0, -1) : change.value;
+    const lines = value.split("\n");
     let type: DiffLine["type"];
     if (change.added) type = "added";
     else if (change.removed) type = "removed";
