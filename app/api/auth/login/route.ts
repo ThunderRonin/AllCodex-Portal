@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { loginAllKnower } from "@/lib/allknower-server";
-import { handleRouteError } from "@/lib/route-error";
+import { assertAllKnowerOwner, loginAllKnower } from "@/lib/allknower-server";
+import { handleRouteError, ServiceError } from "@/lib/route-error";
 import { resolveAllKnowerUrl, setAllKnowerSessionCookies } from "../_shared";
 
 /**
@@ -26,6 +26,12 @@ export async function POST(req: NextRequest) {
     }
 
     const { token, user } = await loginAllKnower(allknowerUrl, email, password);
+    try {
+      await assertAllKnowerOwner({ url: allknowerUrl, token });
+    } catch (err) {
+      if (err instanceof ServiceError) throw err;
+      throw new ServiceError("FORBIDDEN", 403, "AllKnower session is not the owner account.");
+    }
     const response = NextResponse.json({ ok: true, user });
     setAllKnowerSessionCookies(response, allknowerUrl, token);
     return response;

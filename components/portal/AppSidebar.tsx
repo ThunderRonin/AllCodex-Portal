@@ -38,7 +38,7 @@ const navItems = [
   {
     label: "Chronicle",
     items: [
-      { href: "/", icon: LayoutDashboard, label: "Dashboard" },
+      { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
       { href: "/lore", icon: BookOpen, label: "Lore Browser" },
       { href: "/search", icon: Search, label: "Search" },
     ],
