@@ -1,28 +1,25 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, Lock, Scroll } from "lucide-react";
+import { Lock, Scroll } from "lucide-react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchJsonOrThrow } from "@/lib/fetch-json";
 
-interface PublicLoreItem {
+interface PublicSharePage {
   noteId: string;
   title: string;
-  loreType: string | null;
+  contentHtml: string;
   dateModified: string;
 }
 
 export default function PublicHomePage() {
-  const { data, isLoading, isError } = useQuery<{ items: PublicLoreItem[] }>({
+  const { data, isLoading, isError } = useQuery<PublicSharePage>({
     queryKey: ["public-lore"],
     queryFn: () => fetchJsonOrThrow("/api/public/lore"),
     retry: false,
   });
-
-  const items = data?.items ?? [];
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -55,35 +52,27 @@ export default function PublicHomePage() {
         </div>
 
         {isLoading ? (
-          <div className="space-y-3">
-            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
+          <div className="space-y-4">
+            <Skeleton className="h-9 w-2/3" />
+            <Skeleton className="h-64 w-full" />
           </div>
-        ) : isError ? (
+        ) : isError || !data ? (
           <div className="border border-border/40 bg-card/50 p-6 text-sm text-muted-foreground">
             Published lore is not available.
           </div>
-        ) : items.length === 0 ? (
+        ) : !data.contentHtml ? (
           <div className="border border-border/40 bg-card/50 p-6 text-sm text-muted-foreground">
             No published lore yet.
           </div>
         ) : (
-          <div className="divide-y divide-border/30 border border-border/40 bg-card/40">
-            {items.map((item) => (
-              <Link
-                key={item.noteId}
-                href={`/public/lore/${item.noteId}`}
-                className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/20"
-              >
-                <BookOpen className="h-4 w-4 shrink-0 text-primary/70" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{item.title}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {item.dateModified ? new Date(item.dateModified).toLocaleDateString() : "Published"}
-                  </p>
-                </div>
-                {item.loreType && <Badge variant="outline" className="shrink-0 text-xs capitalize">{item.loreType}</Badge>}
-              </Link>
-            ))}
+          <div className="space-y-5">
+            <h3 className="text-2xl font-bold text-primary" style={{ fontFamily: "var(--font-cinzel)" }}>
+              {data.title}
+            </h3>
+            <div
+              className="prose prose-invert max-w-none border border-border/40 bg-card/40 p-5 font-[var(--font-crimson)] text-base leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: data.contentHtml }}
+            />
           </div>
         )}
       </section>

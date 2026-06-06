@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { MockNextRequest } from '@/app/api/__test-helpers__/mock-next';
 import { mockEtapiCreds, mockNoCreds } from '@/app/api/__test-helpers__/mock-creds';
 
@@ -40,6 +40,16 @@ describe('/api/lore/[id]/preview', () => {
   });
 
   describe('GET', () => {
+    const originalAllCodexUrl = process.env.ALLCODEX_URL;
+
+    beforeEach(() => {
+      process.env.ALLCODEX_URL = 'http://localhost:8080';
+    });
+
+    afterEach(() => {
+      process.env.ALLCODEX_URL = originalAllCodexUrl;
+    });
+
     it('returns GM view by default', async () => {
       vi.mocked(getEtapiCreds).mockResolvedValue(mockEtapiCreds());
       vi.mocked(getNoteContent).mockResolvedValue('<p>secret</p>');
@@ -52,15 +62,39 @@ describe('/api/lore/[id]/preview', () => {
       expect(res.headers.get('Content-Type')).toBe('text/html; charset=utf-8');
     });
 
-    it('returns Player view if requested', async () => {
+    it('returns Core share output for Player view without ETAPI content access', async () => {
       vi.mocked(getEtapiCreds).mockResolvedValue(mockEtapiCreds());
-      vi.mocked(getNoteContent).mockResolvedValue('<p>content</p>');
+      global.fetch = vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({
+          noteId: '123',
+          title: 'Shared',
+          type: 'text',
+          mime: 'text/html',
+          content: '<p>player content</p>',
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      );
 
       const req = new MockNextRequest('http://localhost/api/lore/123/preview?mode=player') as any;
       const res = await GET(req, { params: Promise.resolve({ id: '123' }) }) as any;
 
       expect(res.status).toBe(200);
-      expect(res.body).toBe('PLAYER: <p>content</p>');
+      expect(res.body).toBe('PLAYER: <p>player content</p>');
+      expect(global.fetch).toHaveBeenCalledWith('http://localhost:8080/share/123');
+      expect(getNoteContent).not.toHaveBeenCalled();
+    });
+
+    it('returns empty player preview when Core share rejects note', async () => {
+      vi.mocked(getEtapiCreds).mockResolvedValue(mockEtapiCreds());
+      global.fetch = vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ message: 'Not found' }), { status: 404 })
+      );
+
+      const req = new MockNextRequest('http://localhost/api/lore/123/preview?mode=player') as any;
+      const res = await GET(req, { params: Promise.resolve({ id: '123' }) }) as any;
+
+      expect(res.status).toBe(200);
+      expect(res.body).toBe('');
+      expect(getNoteContent).not.toHaveBeenCalled();
     });
 
     it('returns 503 if not configured', async () => {

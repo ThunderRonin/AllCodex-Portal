@@ -1,17 +1,25 @@
 import { NextResponse } from "next/server";
-import { searchNotes } from "@/lib/etapi-server";
-import { getPublicEtapiCreds } from "@/lib/get-creds";
-import { isPublicLoreNote, publicLoreSummary } from "@/lib/public-lore";
+import { fetchCoreShareRoot, normalizeCoreShareHtml } from "@/lib/core-share-server";
 import { handleRouteError, notConfigured } from "@/lib/route-error";
+import { sanitizeLoreHtml } from "@/lib/sanitize";
 
 export async function GET() {
   try {
-    const creds = await getPublicEtapiCreds();
-    if (!creds.url || !creds.token) return notConfigured("AllCodex");
+    const coreUrl = process.env.ALLCODEX_URL ?? "";
+    if (!coreUrl) return notConfigured("AllCodex");
 
-    const notes = await searchNotes(creds, "#lore");
+    const note = await fetchCoreShareRoot(coreUrl);
+    if (!note) {
+      return NextResponse.json({ error: "NOT_FOUND", message: "Published lore is not available." }, { status: 404 });
+    }
+
     return NextResponse.json({
-      items: notes.filter(isPublicLoreNote).map(publicLoreSummary),
+      noteId: note.noteId,
+      title: note.title,
+      type: note.type,
+      loreType: null,
+      contentHtml: sanitizeLoreHtml(normalizeCoreShareHtml(coreUrl, note.content)),
+      dateModified: note.utcDateModified ?? "",
     });
   } catch (err) {
     return handleRouteError(err);
