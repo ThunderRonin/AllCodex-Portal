@@ -39,6 +39,9 @@ interface ShareItem {
   isGmOnly: boolean;
   shareAlias: string | null;
   isProtected: boolean;
+  isInShareTree: boolean;
+  isPublished: boolean;
+  shareUrl: string | null;
   dateModified: string;
 }
 
@@ -133,13 +136,13 @@ export default function SharedPage() {
 
   const filtered = (items ?? []).filter((item) => {
     if (search && !item.title.toLowerCase().includes(search.toLowerCase())) return false;
-    if (filter === "published") return !item.isDraft && !item.isGmOnly;
+    if (filter === "published") return item.isPublished;
     if (filter === "draft") return item.isDraft;
     if (filter === "gmOnly") return item.isGmOnly;
     return true;
   });
 
-  const publishedCount = (items ?? []).filter((i) => !i.isDraft && !i.isGmOnly).length;
+  const publishedCount = (items ?? []).filter((i) => i.isPublished).length;
   const draftCount = (items ?? []).filter((i) => i.isDraft).length;
   const gmOnlyCount = (items ?? []).filter((i) => i.isGmOnly).length;
 
@@ -284,6 +287,11 @@ export default function SharedPage() {
                       Protected
                     </Badge>
                   )}
+                  {!item.isInShareTree && (
+                    <Badge className="gap-1 text-[10px] bg-muted/20 text-muted-foreground border-border/30 border">
+                      Not Shared
+                    </Badge>
+                  )}
                   {item.shareAlias && (
                     <Badge variant="outline" className="text-[10px] font-mono text-muted-foreground">
                       {item.shareAlias}
@@ -292,15 +300,17 @@ export default function SharedPage() {
                 </div>
 
                 {/* External link */}
-                <a
-                  href={`/share/${item.shareAlias ?? item.noteId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
-                  title="Open share URL"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </a>
+                {item.shareUrl && (
+                  <a
+                    href={item.shareUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
+                    title="Open share URL"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                )}
 
                 {/* Edit link */}
                 <Link

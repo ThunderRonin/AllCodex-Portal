@@ -781,6 +781,10 @@ export async function installPortalApiMocks(page: Page, options: PortalMockOptio
     });
   });
 
+  await page.route("**/api/notifications/vapid-public-key", async (route) => {
+    await fulfillJson(route, { publicKey: null });
+  });
+
   await page.route("**/api/integrations/allcodex/connect", async (route) => {
     await fulfillJson(route, { success: true });
   });
@@ -908,6 +912,36 @@ export async function installPortalApiMocks(page: Page, options: PortalMockOptio
 
   await page.route("**/api/ai/consistency", async (route) => {
     await fulfillJson(route, consistency.body, consistency.status ?? 200);
+  });
+
+  await page.route("**/api/usage/**", async (route) => {
+    const pathname = new URL(route.request().url()).pathname;
+    const method = route.request().method();
+    if (pathname.endsWith("/alert-status")) {
+      await fulfillJson(route, {
+        configured: false,
+        dailySpendUsd: 0,
+        monthlySpendUsd: 0,
+        dailyBudgetUsd: null,
+        monthlyBudgetUsd: null,
+        dailyOverBudget: false,
+        monthlyOverBudget: false,
+      });
+      return;
+    }
+    if (pathname.endsWith("/budgets")) {
+      if (method === "PUT") {
+        await fulfillJson(route, { success: true });
+        return;
+      }
+      await fulfillJson(route, {
+        dailyBudgetUsd: null,
+        monthlyBudgetUsd: null,
+        alertEmail: null,
+      });
+      return;
+    }
+    await route.fallback();
   });
 
   return {

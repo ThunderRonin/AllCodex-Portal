@@ -101,6 +101,13 @@ export async function getAkCreds(): Promise<AkCreds> {
   };
 }
 
+export async function getPublicEtapiCreds(): Promise<EtapiCreds> {
+  return {
+    url: process.env.ALLCODEX_URL ?? "",
+    token: process.env.ALLCODEX_ETAPI_TOKEN ?? "",
+  };
+}
+
 export async function isEtapiConfigured(): Promise<boolean> {
   const creds = await getEtapiCreds();
   return Boolean(creds.url && creds.token);
