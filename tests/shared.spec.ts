@@ -97,4 +97,41 @@ test.describe("Shared Content page", () => {
 
     await expectNoConsoleErrors(errors);
   });
+
+  test("toggling draft and gmOnly updates badges and count metrics dynamically", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("console", (msg) => { if (msg.type() === "error") errors.push(msg.text()); });
+
+    await installPortalApiMocks(page);
+    await page.goto("/shared");
+
+    // Check initial counts: Published = 1 (Aria Vale), Draft = 1 (Aether Keep), GM Only = 0
+    await expect(page.getByRole("button", { name: /Published/ })).toContainText("1");
+    await expect(page.getByRole("button", { name: /Draft/ })).toContainText("1");
+    await expect(page.getByRole("button", { name: /GM Only/ })).toContainText("0");
+
+    // Toggle Aria Vale to Draft
+    const ariaRow = page.locator("div.group", { hasText: "Aria Vale" });
+    const ariaDraftBadge = ariaRow.getByText("Published");
+    await ariaDraftBadge.click();
+
+    // Now Aria Vale is Draft. Counts should update: Published = 0, Draft = 2, GM Only = 0
+    await expect(page.getByRole("button", { name: /Published/ })).toContainText("0");
+    await expect(page.getByRole("button", { name: /Draft/ })).toContainText("2");
+
+    // Toggle Aria Vale back to Published (by clicking "Draft" badge in its row)
+    await ariaRow.getByText("Draft").click();
+    await expect(page.getByRole("button", { name: /Published/ })).toContainText("1");
+    await expect(page.getByRole("button", { name: /Draft/ })).toContainText("1");
+
+    // Toggle Aria Vale to GM Only
+    const ariaGmBadge = ariaRow.getByText("Visible");
+    await ariaGmBadge.click();
+
+    // Now Aria Vale is GM Only. Counts: Published = 0, Draft = 1, GM Only = 1
+    await expect(page.getByRole("button", { name: /Published/ })).toContainText("0");
+    await expect(page.getByRole("button", { name: /GM Only/ })).toContainText("1");
+
+    await expectNoConsoleErrors(errors);
+  });
 });

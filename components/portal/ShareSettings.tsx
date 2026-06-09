@@ -74,18 +74,10 @@ export function ShareSettings({ noteId, attributes }: ShareSettingsProps) {
   const currentAlias = shareAliasAttr?.value ?? "";
   const isProtected = Boolean(shareCredsAttr);
 
-  // Fetch AllCodex URL for computing share links
-  const { data: statusData } = useQuery<{
-    allcodex: { url: string | null };
-  }>({
-    queryKey: ["config-status"],
-    queryFn: () => fetch("/api/config/status").then((r) => r.json()),
-    staleTime: 60_000,
-  });
-  const coreUrl = statusData?.allcodex?.url ?? "";
-  const shareUrl = coreUrl
-    ? `${coreUrl}/share/${currentAlias || noteId}`
-    : `/share/${currentAlias || noteId}`;
+  const portalUrl =
+    process.env.NEXT_PUBLIC_PORTAL_URL ||
+    (typeof window !== "undefined" ? window.location.origin : "");
+  const shareUrl = `${portalUrl}/public/lore/${currentAlias || noteId}`;
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -256,7 +248,7 @@ export function ShareSettings({ noteId, attributes }: ShareSettingsProps) {
             Share URL
           </p>
           <a
-            href={coreUrl ? shareUrl : undefined}
+            href={shareUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="block text-xs text-primary/70 hover:text-primary break-all font-mono transition-colors"

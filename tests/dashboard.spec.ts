@@ -8,7 +8,7 @@ test.describe("Dashboard page", () => {
     page.on("console", (msg) => { if (msg.type() === "error") errors.push(msg.text()); });
 
     await installPortalApiMocks(page);
-    await page.goto("/");
+    await page.goto("/dashboard");
 
     await expect(page.getByRole("heading", { name: "Chronicle Overview" })).toBeVisible();
     await expect(page.getByText("Total Lore Entries")).toBeVisible();
@@ -23,7 +23,7 @@ test.describe("Dashboard page", () => {
     page.on("console", (msg) => { if (msg.type() === "error") errors.push(msg.text()); });
 
     await installPortalApiMocks(page);
-    await page.goto("/");
+    await page.goto("/dashboard");
 
     // Default seed notes appear as links in the Recent Entries list
     await expect(page.getByRole("link", { name: "Aria Vale" }).first()).toBeVisible();
@@ -34,7 +34,7 @@ test.describe("Dashboard page", () => {
 
   test("New Lore Entry button links to /lore/new", async ({ page }) => {
     await installPortalApiMocks(page);
-    await page.goto("/");
+    await page.goto("/dashboard");
 
     const newEntryLink = page.getByRole("link", { name: /new lore entry/i });
     await expect(newEntryLink).toBeVisible();
@@ -46,7 +46,7 @@ test.describe("Dashboard page", () => {
     page.on("console", (msg) => { if (msg.type() === "error") errors.push(msg.text()); });
 
     await installPortalApiMocks(page);
-    await page.goto("/");
+    await page.goto("/dashboard");
 
     await expect(page.getByRole("link", { name: "Brain Dump" }).first()).toBeVisible();
     await expect(page.getByRole("link", { name: "Consistency Check" }).first()).toBeVisible();
@@ -69,7 +69,7 @@ test.describe("Dashboard page", () => {
     );
 
     await installPortalApiMocks(page, { notes: manyNotes });
-    await page.goto("/");
+    await page.goto("/dashboard");
 
     await expect(page.getByRole("link", { name: /view all/i })).toBeVisible();
 
@@ -80,8 +80,8 @@ test.describe("Dashboard page", () => {
     const errors: string[] = [];
     page.on("console", (msg) => { if (msg.type() === "error") errors.push(msg.text()); });
 
-    await installPortalApiMocks(page, { notes: [] });
-    await page.goto("/");
+    await installPortalApiMocks(page, { notes: [], quests: [], statblocks: [] });
+    await page.goto("/dashboard");
 
     await expect(page.getByText(/no lore entries yet/i)).toBeVisible();
     await expect(page.getByRole("link", { name: /open brain dump/i })).toBeVisible();
@@ -100,7 +100,7 @@ test.describe("Dashboard page", () => {
       },
     });
 
-    await page.goto("/");
+    await page.goto("/dashboard");
 
     await expect(page.getByText("Error").first()).toBeVisible();
     await expect(page.getByText("Disconnected").first()).toBeVisible();
@@ -124,7 +124,7 @@ test.describe("Dashboard page", () => {
       await route.fallback();
     });
 
-    await page.goto("/");
+    await page.goto("/dashboard");
 
     await expect(page.getByText(/allcodex unavailable/i).first()).toBeVisible();
     await expect(page.getByText(/no lore entries yet/i)).toHaveCount(0);
@@ -144,7 +144,7 @@ test.describe("Dashboard page", () => {
       await route.fallback();
     });
 
-    await page.goto("/");
+    await page.goto("/dashboard");
 
     await expect(page.getByText(/allknower unavailable/i).first()).toBeVisible();
     await expect(page.getByText(/notes in rag index/i)).toHaveCount(0);

@@ -6,7 +6,7 @@ test("app loads with grimoire chrome and lore browser navigation", async ({ page
   const errors = attachConsoleErrorCollector(page);
   await installPortalApiMocks(page);
 
-  await page.goto("/");
+  await page.goto("/dashboard");
 
   await expect(page.getByRole("heading", { name: "Chronicle Overview" })).toBeVisible();
   await expect(page.getByText("AllCodex").first()).toBeVisible();

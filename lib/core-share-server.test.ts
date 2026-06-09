@@ -34,11 +34,11 @@ describe("core-share-server", () => {
   });
 
   it("rewrites Core share links for Portal public pages", () => {
-    const html = '<a href="./city">City</a><img src="/share/api/images/pic/image">';
+    const html = '<a href="./city">City</a><img src="/share/api/images/pic/image"><img src="share/api/images/pic/image2">';
 
     const result = normalizeCoreShareHtml("http://localhost:8080/", html);
 
-    expect(result).toBe('<a href="/public/lore/city">City</a><img src="http://localhost:8080/share/api/images/pic/image">');
+    expect(result).toBe('<a href="/public/lore/city">City</a><img src="/api/public/images/pic/image"><img src="/api/public/images/pic/image2">');
   });
 
   it("maps timed out Core share fetches to unreachable service errors", async () => {
