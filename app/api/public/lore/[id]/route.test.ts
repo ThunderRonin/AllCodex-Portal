@@ -129,7 +129,7 @@ describe('/api/public/lore/[id]', () => {
       utcDateModified: '2026-06-09T12:00:00Z',
     } as any);
     vi.mocked(getNoteContent).mockResolvedValue('<p>Lore Content</p>');
-    vi.mocked(getThemeSongUrl).mockReturnValue('http://song-url');
+    vi.mocked(getThemeSongUrl).mockReturnValue('https://song-url');
     vi.mocked(getPortraitImageNoteId).mockReturnValue('img-1');
 
     const req = new MockNextRequest('http://localhost/api/public/lore/lore-1') as any;
@@ -147,7 +147,7 @@ describe('/api/public/lore/[id]', () => {
         { attributeId: 'a4', noteId: 'lore-1', type: 'relation', name: 'portrait', value: 'img-1', isInheritable: false },
       ],
       portraitImageNoteId: 'img-1',
-      themeSongUrl: 'http://song-url',
+      themeSongUrl: 'https://song-url',
       dateModified: '2026-06-09T12:00:00Z',
     });
   });
