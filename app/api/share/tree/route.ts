@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getEtapiCreds } from "@/lib/get-creds";
 import { handleRouteError, notConfigured } from "@/lib/route-error";
 import { searchNotes } from "@/lib/etapi-server";
+import { getCoreShareNoteAccess } from "@/lib/core-share-server";
 
 /**
  * GET /api/share/tree
@@ -16,15 +17,28 @@ export async function GET() {
 
     const notes = await searchNotes(creds, "#lore");
 
-    const items = notes.map((n) => ({
-      noteId: n.noteId,
-      title: n.title,
-      loreType: n.attributes.find((a) => a.name === "loreType")?.value ?? null,
-      isDraft: n.attributes.some((a) => a.name === "draft" && a.type === "label"),
-      isGmOnly: n.attributes.some((a) => a.name === "gmOnly" && a.type === "label"),
-      shareAlias: n.attributes.find((a) => a.name === "shareAlias")?.value ?? null,
-      isProtected: n.attributes.some((a) => a.name === "shareCredentials"),
-      dateModified: n.dateModified,
+    const items = await Promise.all(notes.map(async (n) => {
+      const isDraft = n.attributes.some((a) => a.name === "draft" && a.type === "label");
+      const isGmOnly = n.attributes.some((a) => a.name === "gmOnly" && a.type === "label");
+      const shareAlias = n.attributes.find((a) => a.name === "shareAlias")?.value ?? null;
+      const isProtected = n.attributes.some((a) => a.name === "shareCredentials" && a.type === "label");
+      const shareAccess = await getCoreShareNoteAccess(creds.url, n.noteId);
+      const isInShareTree = shareAccess !== "missing";
+      const isPublished = isInShareTree && !isDraft && !isGmOnly && !isProtected;
+
+      return {
+        noteId: n.noteId,
+        title: n.title,
+        loreType: n.attributes.find((a) => a.name === "loreType")?.value ?? null,
+        isDraft,
+        isGmOnly,
+        shareAlias,
+        isProtected,
+        isInShareTree,
+        isPublished,
+        shareUrl: isInShareTree ? `${creds.url}/share/${shareAlias ?? n.noteId}` : null,
+        dateModified: n.dateModified,
+      };
     }));
 
     return NextResponse.json(items);

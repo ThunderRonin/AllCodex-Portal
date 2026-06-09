@@ -17,7 +17,6 @@ import {
   Lock,
   Brain,
   Scroll,
-  UserPlus,
   LogIn,
   Globe,
   ExternalLink,
@@ -240,14 +239,14 @@ function AllCodexCard({ initialStatus }: { initialStatus?: StatusPayload["allcod
 
 // ── AllKnower card ─────────────────────────────────────────────────────────────
 
-type AkMode = "idle" | "login" | "register";
+type AkMode = "idle" | "login";
 
 /**
  * Render the AllKnower configuration card that displays connection status and provides controls
- * to override the service URL, log in, register, or disconnect.
+ * to override the service URL, log in, or disconnect.
  *
  * The card manages its own local form and connection state (connected, disconnected, error)
- * and exposes UI for an advanced override section with login/register flows and a disconnect action.
+ * and exposes UI for an advanced override section with login and disconnect actions.
  *
  * @param initialStatus - Optional initial status payload for AllKnower (used to derive the initial connection state and URL)
  * @returns The AllKnower configuration card as a React element
@@ -260,14 +259,13 @@ function AllKnowerCard({ initialStatus }: { initialStatus?: StatusPayload["allkn
   const [url, setUrl] = useState(initialStatus?.url ?? "http://localhost:3001");
   const [mode, setMode] = useState<AkMode>("idle");
   const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const isConnected = state === "connected";
 
-  function resetForm() { setEmail(""); setName(""); setPassword(""); setError(null); }
+  function resetForm() { setEmail(""); setPassword(""); setError(null); }
   function switchMode(next: AkMode) { resetForm(); setMode(next); }
 
   async function handleLogin() {
@@ -275,17 +273,6 @@ function AllKnowerCard({ initialStatus }: { initialStatus?: StatusPayload["allkn
     setLoading(true); setError(null);
     try {
       const res = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url, email, password }) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      setState("connected"); resetForm(); setMode("idle");
-    } catch (e) { setState("error"); setError(String(e)); } finally { setLoading(false); }
-  }
-
-  async function handleRegister() {
-    if (!url || !email || !name || !password) return;
-    setLoading(true); setError(null);
-    try {
-      const res = await fetch("/api/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url, email, name, password }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setState("connected"); resetForm(); setMode("idle");
@@ -341,9 +328,6 @@ function AllKnowerCard({ initialStatus }: { initialStatus?: StatusPayload["allkn
                 <Button className="flex-1 gap-2 rounded-none" onClick={() => switchMode("login")} disabled={!url}>
                   <LogIn className="h-4 w-4" /> Login
                 </Button>
-                <Button variant="outline" className="flex-1 gap-2 rounded-none" onClick={() => switchMode("register")} disabled={!url}>
-                  <UserPlus className="h-4 w-4" /> Register
-                </Button>
               </div>
             )}
 
@@ -360,29 +344,6 @@ function AllKnowerCard({ initialStatus }: { initialStatus?: StatusPayload["allkn
                 <div className="flex gap-2">
                   <Button className="flex-1 gap-2 rounded-none" onClick={handleLogin} disabled={loading || !url || !email || !password}>
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />} Login
-                  </Button>
-                  <Button variant="ghost" className="gap-2 rounded-none" onClick={() => switchMode("idle")} disabled={loading}>Cancel</Button>
-                </div>
-              </div>
-            )}
-
-            {!isConnected && mode === "register" && (
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="ak-reg-name">Name</Label>
-                  <Input id="ak-reg-name" type="text" value={name} onChange={(e) => setName(e.target.value)} disabled={loading} autoComplete="name" className="rounded-none bg-transparent border-x-0 border-t-0 border-b border-border/50 focus-visible:ring-0 px-0 h-9" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="ak-reg-email">Email</Label>
-                  <Input id="ak-reg-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} autoComplete="email" className="rounded-none bg-transparent border-x-0 border-t-0 border-b border-border/50 focus-visible:ring-0 px-0 h-9" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="ak-reg-password">Password</Label>
-                  <Input id="ak-reg-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={loading} autoComplete="new-password" className="rounded-none bg-transparent border-x-0 border-t-0 border-b border-border/50 focus-visible:ring-0 px-0 h-9" />
-                </div>
-                <div className="flex gap-2">
-                  <Button className="flex-1 gap-2 rounded-none" onClick={handleRegister} disabled={loading || !url || !email || !name || !password}>
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />} Register
                   </Button>
                   <Button variant="ghost" className="gap-2 rounded-none" onClick={() => switchMode("idle")} disabled={loading}>Cancel</Button>
                 </div>

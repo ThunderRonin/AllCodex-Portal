@@ -7,7 +7,7 @@ test.describe("Mobile Viewport Layouts", () => {
 
   test("sidebar navigation collapses into a hamburger menu", async ({ page }) => {
     await installPortalApiMocks(page);
-    await page.goto("/");
+    await page.goto("/dashboard");
 
     // Desktop sidebar should be hidden
     const sidebar = page.locator("aside.fixed").first();

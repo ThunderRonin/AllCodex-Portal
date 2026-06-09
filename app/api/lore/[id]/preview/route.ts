@@ -3,6 +3,7 @@ import { getEtapiCreds } from "@/lib/get-creds";
 import { handleRouteError, notConfigured } from "@/lib/route-error";
 import { getNoteContent } from "@/lib/etapi-server";
 import { normalizeLoreHtmlForPortal, sanitizePlayerView, sanitizeLoreHtml } from "@/lib/sanitize";
+import { fetchCoreShareNote, normalizeCoreShareHtml } from "@/lib/core-share-server";
 
 /**
  * GET /api/lore/[id]/preview?mode=player|gm
@@ -21,13 +22,19 @@ export async function GET(
     const { id } = await params;
     const mode = req.nextUrl.searchParams.get("mode") ?? "gm";
 
-    const rawContent = await getNoteContent(creds, id);
-    const normalizedContent = normalizeLoreHtmlForPortal(rawContent);
+    if (mode === "player") {
+      const note = await fetchCoreShareNote(creds.url, id);
+      const processed = note
+        ? sanitizePlayerView(normalizeCoreShareHtml(creds.url, note.content))
+        : "";
 
-    const processed =
-      mode === "player"
-        ? sanitizePlayerView(normalizedContent)
-        : sanitizeLoreHtml(normalizedContent);
+      return new NextResponse(processed, {
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      });
+    }
+
+    const rawContent = await getNoteContent(creds, id);
+    const processed = sanitizeLoreHtml(normalizeLoreHtmlForPortal(rawContent));
 
     return new NextResponse(processed, {
       headers: { "Content-Type": "text/html; charset=utf-8" },

@@ -22,7 +22,7 @@ const ALLOWED_ATTR = [
   "data-note-id", // Trilium internal link attribute
 ];
 
-const PORTAL_SAFE_URI_REGEXP = /^(?:https?:|mailto:|#|\/api\/images\/|api\/images\/)/i;
+const PORTAL_SAFE_URI_REGEXP = /^(?:https?:|mailto:|#|\/api\/images\/|api\/images\/|\/public\/lore\/)/i;
 
 export function normalizeLoreHtmlForPortal(html: string): string {
   return html

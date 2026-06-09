@@ -90,6 +90,9 @@ async function akFetch(creds: AkCreds, path: string, init: RequestInit = {}): Pr
     } catch {}
     throw new ServiceError("UNAUTHORIZED", 401, "AllKnower session expired. Please sign in again.");
   }
+  if (res.status === 403) {
+    throw new ServiceError("FORBIDDEN", 403, "AllKnower session is not the owner account.");
+  }
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new ServiceError("SERVICE_ERROR", 502, `AllKnower ${init.method ?? "GET"} ${path} → ${res.status}: ${body}`);
@@ -193,6 +196,12 @@ export async function getAllKnowerSession(creds: AkCreds): Promise<{ session: un
   const res = await akFetch(creds, "/api/auth/get-session", { method: "GET", signal: AbortSignal.timeout(60_000) });
   const data = await res.json().catch(() => ({}));
   return { session: data.session ?? null, user: data.user ?? null };
+}
+
+export async function assertAllKnowerOwner(creds: AkCreds): Promise<{ ok: true; user: unknown }> {
+  const res = await akFetch(creds, "/auth/owner-session", { method: "GET", signal: AbortSignal.timeout(8_000) });
+  const data = await res.json().catch(() => ({}));
+  return { ok: true, user: data.user ?? null };
 }
 
 /**
@@ -835,4 +844,3 @@ export async function getUsageAlertStatus(creds: AkCreds): Promise<UsageAlertSta
   }
   return parsed.data;
 }
-

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 export type ServiceErrorCode =
   | "NOT_CONFIGURED"
   | "UNAUTHORIZED"
+  | "FORBIDDEN"
   | "UNREACHABLE"
   | "SERVICE_ERROR";
 

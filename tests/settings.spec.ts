@@ -17,9 +17,29 @@ async function setDisconnected(page: import("@playwright/test").Page) {
   });
 }
 
+async function authenticateOwner(page: import("@playwright/test").Page) {
+  await page.context().addCookies([
+    {
+      name: "allknower_token",
+      value: "test-owner-token",
+      url: "http://localhost:3000",
+      httpOnly: true,
+      sameSite: "Lax",
+    },
+    {
+      name: "allknower_url",
+      value: "http://localhost:3001",
+      url: "http://localhost:3000",
+      httpOnly: true,
+      sameSite: "Lax",
+    },
+  ]);
+}
+
 test("renders AllCodex and AllKnower status cards", async ({ page }) => {
   const errors = attachConsoleErrorCollector(page);
   await installPortalApiMocks(page);
+  await authenticateOwner(page);
 
   await page.goto("/settings");
 
@@ -31,6 +51,7 @@ test("renders AllCodex and AllKnower status cards", async ({ page }) => {
 test("ETAPI token connect flow calls POST /api/integrations/allcodex/connect", async ({ page }) => {
   const errors = attachConsoleErrorCollector(page);
   await installPortalApiMocks(page);
+  await authenticateOwner(page);
   await setDisconnected(page);
 
   const connectCalled = { value: false };
@@ -55,6 +76,7 @@ test("ETAPI token connect flow calls POST /api/integrations/allcodex/connect", a
 test("AllCodex password login flow calls POST /api/config/allknower-login", async ({ page }) => {
   const errors = attachConsoleErrorCollector(page);
   await installPortalApiMocks(page);
+  await authenticateOwner(page);
   await setDisconnected(page);
 
   const loginCalled = { value: false };
@@ -78,14 +100,15 @@ test("AllCodex password login flow calls POST /api/config/allknower-login", asyn
   await expectNoConsoleErrors(errors);
 });
 
-test("AllKnower register mode calls POST /api/auth/register", async ({ page }) => {
+test("AllKnower owner login calls POST /api/auth/login", async ({ page }) => {
   const errors = attachConsoleErrorCollector(page);
   await installPortalApiMocks(page);
+  await authenticateOwner(page);
   await setDisconnected(page);
 
-  const registerCalled = { value: false };
-  await page.route("**/api/auth/register", async (route) => {
-    registerCalled.value = true;
+  const loginCalled = { value: false };
+  await page.route("**/api/auth/login", async (route) => {
+    loginCalled.value = true;
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) });
   });
 
@@ -95,24 +118,20 @@ test("AllKnower register mode calls POST /api/auth/register", async ({ page }) =
   const allknowerCard = page.locator("text=AI knowledge service").locator("..").locator("..").locator("..").locator("..");
   await allknowerCard.getByText("Advanced / Override").click();
 
-  // Click Register button in idle mode to switch to register form
-  await allknowerCard.getByRole("button", { name: /^register$/i }).click();
+  await allknowerCard.getByRole("button", { name: /^login$/i }).click();
+  await page.locator("#ak-login-email").fill("test@example.com");
+  await page.locator("#ak-login-password").fill("password123");
 
-  // Fill register form fields
-  await page.locator("#ak-reg-name").fill("Test User");
-  await page.locator("#ak-reg-email").fill("test@example.com");
-  await page.locator("#ak-reg-password").fill("password123");
+  await allknowerCard.getByRole("button", { name: /^login$/i }).click();
 
-  // Submit the register form (the Register button in register mode)
-  await allknowerCard.getByRole("button", { name: /^register$/i }).click();
-
-  expect(registerCalled.value).toBe(true);
+  expect(loginCalled.value).toBe(true);
   await expectNoConsoleErrors(errors);
 });
 
 test("Disconnect AllCodex calls DELETE /api/integrations/allcodex", async ({ page }) => {
   const errors = attachConsoleErrorCollector(page);
   await installPortalApiMocks(page);
+  await authenticateOwner(page);
   // Default mock has ok: true → connected state
 
   const disconnectCalled = { value: false };
