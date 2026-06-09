@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getNote, getPortraitImageNoteId, getThemeSongUrl, patchNote, deleteNote, resolveNoteRelations } from "@/lib/etapi-server";
 import { getEtapiCreds } from "@/lib/get-creds";
 import { handleRouteError, notConfigured } from "@/lib/route-error";
+import { getCoreShareNoteAccess } from "@/lib/core-share-server";
 
 /**
  * Retrieve a lore note by id and return its data augmented with resolved relations, portrait image note id, and theme song URL.
@@ -16,16 +17,19 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (!creds.url || !creds.token) return notConfigured("AllCodex");
     const { id } = await params;
     const note = await getNote(creds, id);
-    const [resolvedRelations, portraitImageNoteId, themeSongUrl] = await Promise.all([
+    const [resolvedRelations, portraitImageNoteId, themeSongUrl, shareAccess] = await Promise.all([
       resolveNoteRelations(creds, note),
       Promise.resolve(getPortraitImageNoteId(note)),
       Promise.resolve(getThemeSongUrl(note)),
+      getCoreShareNoteAccess(creds.url, id).catch(() => "missing" as const),
     ]);
+    const isInShareTree = shareAccess !== "missing";
     return NextResponse.json({
       ...note,
       resolvedRelations,
       portraitImageNoteId,
       themeSongUrl,
+      isInShareTree,
     });
   } catch (err) {
     return handleRouteError(err);
