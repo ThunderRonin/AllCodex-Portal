@@ -6,7 +6,17 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { fetchJsonOrThrow } from "@/lib/fetch-json";
+
+interface ResolvedRelation {
+  name: string;
+  targetNoteId: string;
+  targetTitle: string;
+  loreType: string | null;
+}
 
 interface PublicLoreDetail {
   noteId: string;
@@ -16,7 +26,25 @@ interface PublicLoreDetail {
   dateModified: string;
   portraitImageNoteId?: string;
   themeSongUrl?: string;
-  attributes: Array<{ name: string; value: string; rawKey: string }>;
+  attributes: Array<{ name: string; value: string }>;
+  resolvedRelations?: ResolvedRelation[];
+}
+
+function toDisplayName(key: string | null): string {
+  if (!key) return "";
+  return key
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, (str) => str.toUpperCase())
+    .trim();
+}
+
+function relationTone(name: string): "violet" | "emerald" | "rose" | "amber" | "blue" | "default" {
+  const n = name.toLowerCase();
+  if (n.includes("enemy") || n.includes("rival") || n.includes("threat")) return "rose";
+  if (n.includes("ally") || n.includes("friend") || n.includes("member")) return "emerald";
+  if (n.includes("leader") || n.includes("ruler") || n.includes("parent")) return "amber";
+  if (n.includes("location") || n.includes("region") || n.includes("origin")) return "blue";
+  return "violet";
 }
 
 function getSpotifyEmbedUrl(url: string): string | null {
@@ -57,6 +85,102 @@ const formatDate = (dateStr: string) => {
   }
 };
 
+function DetailField({ label, value, emphasize = false }: { label: string; value: string; emphasize?: boolean }) {
+  if (!value) return null;
+  return (
+    <div className="flex justify-between py-1.5 border-b border-border/10 last:border-0 text-xs">
+      <span className="wiki-detail-label text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{label}</span>
+      <span className={cn("text-foreground/90 font-medium text-right max-w-[60%] break-words", emphasize && "text-amber-400 font-bold")}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function PortraitCard({ title, portraitImageNoteId }: { title: string; portraitImageNoteId?: string }) {
+  if (portraitImageNoteId) {
+    return (
+      <Card className="wiki-rail-card overflow-hidden">
+        <div className="wiki-portrait-frame relative aspect-[4/5] overflow-hidden border-b border-border/45">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`/api/public/images/${portraitImageNoteId}/portrait.png`}
+            alt={`${title} portrait`}
+            className="object-cover w-full h-full"
+            loading="lazy"
+          />
+        </div>
+        <CardContent className="p-4">
+          <p className="wiki-rail-kicker">Portrait</p>
+          <p className="font-semibold text-sm text-foreground/90">{title}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const initials = title
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+
+  return (
+    <Card className="wiki-rail-card overflow-hidden">
+      <div className="wiki-portrait-frame wiki-portrait-placeholder">
+        <div className="wiki-portrait-rune">{initials || "AC"}</div>
+      </div>
+      <CardContent className="p-4">
+        <p className="wiki-rail-kicker">Portrait Slot</p>
+        <p className="text-xs text-muted-foreground">No portrait has been attached to this entry.</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ThemeSongCard({ spotifyEmbedUrl }: { spotifyEmbedUrl: string | null }) {
+  if (!spotifyEmbedUrl) return null;
+  return (
+    <Card className="wiki-rail-card overflow-hidden">
+      <CardContent className="p-4 space-y-2">
+        <div className="flex items-center gap-1.5">
+          <Music className="h-3.5 w-3.5 text-primary/80" />
+          <p className="wiki-rail-kicker">Theme Song</p>
+        </div>
+        <iframe
+          src={spotifyEmbedUrl}
+          width="100%"
+          height="80"
+          frameBorder="0"
+          allowFullScreen={false}
+          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+          loading="lazy"
+          className="rounded border border-primary/15 bg-black/60 shadow-sm"
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
+function RelationGroup({ label, items }: { label: string; items: ResolvedRelation[] }) {
+  return (
+    <div className="space-y-2">
+      <p className="wiki-rail-kicker">{toDisplayName(label)}</p>
+      <div className="flex flex-wrap gap-2">
+        {items.map((rel) => (
+          <Link
+            key={rel.targetNoteId}
+            href={`/public/lore/${rel.targetNoteId}`}
+            className={cn("wiki-relation-chip", `wiki-relation-chip--${relationTone(rel.name)}`)}
+          >
+            {rel.targetTitle}
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function PublicLoreDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
@@ -68,6 +192,15 @@ export default function PublicLoreDetailPage() {
   });
 
   const spotifyEmbedUrl = data?.themeSongUrl ? getSpotifyEmbedUrl(data.themeSongUrl) : null;
+
+  // Group relations by name
+  const groupedRelations: Record<string, ResolvedRelation[]> = {};
+  (data?.resolvedRelations ?? []).forEach((rel) => {
+    if (!groupedRelations[rel.name]) {
+      groupedRelations[rel.name] = [];
+    }
+    groupedRelations[rel.name].push(rel);
+  });
 
   return (
     <main className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-neutral-900 via-neutral-950 to-black text-foreground antialiased">
@@ -98,118 +231,88 @@ export default function PublicLoreDetailPage() {
         </Button>
 
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="md:col-span-3 space-y-6">
-              <Skeleton className="h-4 w-24 bg-neutral-800" />
-              <Skeleton className="h-12 w-2/3 bg-neutral-800" />
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-8">
+            <div className="space-y-6">
+              <Skeleton className="h-[100px] w-full bg-neutral-800" />
               <Skeleton className="h-[400px] w-full bg-neutral-800" />
             </div>
-            <div className="md:col-span-1">
-              <Skeleton className="h-[450px] w-full bg-neutral-800" />
+            <div className="space-y-4">
+              <Skeleton className="h-64 w-full bg-neutral-800" />
+              <Skeleton className="h-40 w-full bg-neutral-800" />
             </div>
           </div>
         ) : isError || !data ? (
-          <div className="border border-red-900/40 bg-red-950/10 p-6 text-sm text-red-400 max-w-xl mx-auto text-center rounded-none shadow-[0_0_15px_rgba(127,29,29,0.1)]">
+          <div className="border border-red-900/40 bg-red-950/10 p-6 text-sm text-red-400 max-w-xl mx-auto text-center rounded-none shadow-[0_0_15px_rgba(127,29,29,0.15)]">
             <p className="font-semibold" style={{ fontFamily: "var(--font-cinzel)" }}>Lore entry is not available</p>
             <p className="text-xs text-red-500/70 mt-1">This record might be marked as draft, GM-only, or password protected.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-8 items-start">
             {/* Main Content Column */}
-            <article className="md:col-span-3 space-y-6">
-              <div>
-                <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-primary/80" style={{ fontFamily: "var(--font-cinzel)" }}>
-                  <BookOpen className="h-3.5 w-3.5 text-primary/65" />
-                  {data.loreType ?? "lore entry"}
+            <div className="space-y-6">
+              <header className="wiki-hero">
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Badge variant="outline" className="wiki-lore-badge capitalize flex items-center gap-1.5 border-primary/35 bg-primary/10 text-primary rounded-full px-2 py-0.5 text-[10px]">
+                      <BookOpen className="h-3 w-3" />
+                      {data.loreType ?? "lore entry"}
+                    </Badge>
+                  </div>
+                  <h1 className="wiki-page-title">{data.title}</h1>
+                  <div className="wiki-title-rule" />
                 </div>
-                <h1 className="text-4xl md:text-5xl font-bold text-primary tracking-wide leading-tight shadow-sm" style={{ fontFamily: "var(--font-cinzel)" }}>
-                  {data.title}
-                </h1>
                 {data.dateModified && (
-                  <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Calendar className="h-3.5 w-3.5 text-muted-foreground/60" />
+                  <div className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground/80">
+                    <Calendar className="h-3.5 w-3.5 text-muted-foreground/50" />
                     <span>Last updated: {formatDate(data.dateModified)}</span>
                   </div>
                 )}
-              </div>
-              
-              <div className="h-px bg-gradient-to-r from-primary/30 via-primary/5 to-transparent w-full" />
+              </header>
 
-              <div
-                className="lore-content prose prose-invert max-w-none font-[var(--font-crimson)] text-lg md:text-xl leading-relaxed text-neutral-300"
-                dangerouslySetInnerHTML={{ __html: data.contentHtml }}
-              />
-            </article>
+              <Card className="wiki-panel">
+                <CardContent className="p-6 sm:p-8">
+                  <div
+                    className="lore-content wiki-article prose prose-invert max-w-none font-[var(--font-crimson)] text-lg md:text-xl leading-relaxed text-neutral-300"
+                    dangerouslySetInnerHTML={{ __html: data.contentHtml }}
+                  />
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Infobox Column */}
-            <aside className="md:col-span-1">
-              <div className="bg-neutral-900/40 backdrop-blur-md border border-primary/20 rounded-lg p-5 shadow-[0_4px_20px_rgba(0,0,0,0.4)] hover:shadow-[0_4px_30px_rgba(212,175,55,0.05)] transition-all duration-500 space-y-5">
-                <div className="text-center pb-3 border-b border-primary/10">
-                  <h3 className="text-lg font-bold text-primary tracking-wider uppercase" style={{ fontFamily: "var(--font-cinzel)" }}>
-                    {data.title}
-                  </h3>
-                  {data.loreType && (
-                    <span className="text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-sans">
-                      {data.loreType}
-                    </span>
-                  )}
-                </div>
+            <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
+              <PortraitCard title={data.title} portraitImageNoteId={data.portraitImageNoteId} />
+              <ThemeSongCard spotifyEmbedUrl={spotifyEmbedUrl} />
 
-                {data.portraitImageNoteId && (
-                  <div className="relative group max-w-[200px] mx-auto">
-                    <div className="border border-primary/45 bg-black/60 p-1.5 rounded-sm shadow-[0_0_15px_rgba(212,175,55,0.15)] transition-all duration-500 group-hover:border-primary group-hover:shadow-[0_0_25px_rgba(212,175,55,0.25)]">
-                      <div className="aspect-[3/4] relative overflow-hidden bg-neutral-950 flex items-center justify-center">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={`/api/public/images/${data.portraitImageNoteId}/portrait.png`}
-                          alt={`${data.title} Portrait`}
-                          className="object-cover w-full h-full transform transition-transform duration-500 group-hover:scale-105"
-                          loading="lazy"
+              <Card className="wiki-rail-card">
+                <CardContent className="p-5 space-y-4">
+                  <div className="space-y-1">
+                    <p className="wiki-rail-kicker">{toDisplayName(data.loreType)} Details</p>
+                    <div className="space-y-0.5">
+                      <DetailField label="Title" value={data.title} />
+                      <DetailField label="Type" value={toDisplayName(data.loreType)} />
+                      {data.attributes && data.attributes.map((attr) => (
+                        <DetailField
+                          key={`${attr.name}-${attr.value}`}
+                          label={toDisplayName(attr.name)}
+                          value={attr.value}
+                          emphasize={attr.name === "status"}
                         />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {data.attributes && data.attributes.length > 0 && (
-                  <div className="space-y-3 font-sans">
-                    <div className="text-[10px] text-primary/60 uppercase tracking-[0.18em] font-semibold" style={{ fontFamily: "var(--font-cinzel)" }}>
-                      Details
-                    </div>
-                    <div className="divide-y divide-primary/5">
-                      {data.attributes.map((attr, idx) => (
-                        <div key={idx} className="py-2 flex justify-between gap-4 text-xs">
-                          <span className="text-primary/70 font-medium uppercase tracking-wider w-5/12">
-                            {attr.name}
-                          </span>
-                          <span className="text-neutral-300 text-right w-7/12 truncate" title={attr.value}>
-                            {attr.value}
-                          </span>
-                        </div>
                       ))}
                     </div>
                   </div>
-                )}
+                </CardContent>
+              </Card>
 
-                {spotifyEmbedUrl && (
-                  <div className="pt-4 border-t border-primary/10 space-y-2.5">
-                    <div className="flex items-center gap-1.5 text-[10px] text-primary/60 uppercase tracking-[0.18em] font-semibold" style={{ fontFamily: "var(--font-cinzel)" }}>
-                      <Music className="h-3 w-3 text-primary/80" />
-                      <span>Theme Song</span>
-                    </div>
-                    <iframe
-                      src={spotifyEmbedUrl}
-                      width="100%"
-                      height="80"
-                      frameBorder="0"
-                      allowFullScreen={false}
-                      allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                      loading="lazy"
-                      className="rounded border border-primary/15 bg-black/60 shadow-sm"
-                    />
-                  </div>
-                )}
-              </div>
+              {Object.entries(groupedRelations).length > 0 && (
+                <Card className="wiki-rail-card">
+                  <CardContent className="p-5 space-y-4">
+                    {Object.entries(groupedRelations).map(([label, items]) => (
+                      <RelationGroup key={label} label={label} items={items} />
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
             </aside>
           </div>
         )}

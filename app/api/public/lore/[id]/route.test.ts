@@ -19,16 +19,18 @@ vi.mock('@/lib/etapi-server', () => ({
   getThemeSongUrl: vi.fn(),
   getPortraitImageNoteId: vi.fn(),
   searchNotes: vi.fn(),
+  resolveNoteRelations: vi.fn(),
 }));
 
 import { getPublicEtapiCreds } from '@/lib/get-creds';
 import { getCoreShareNoteAccess } from '@/lib/core-share-server';
-import { getNote, getNoteContent, getThemeSongUrl, getPortraitImageNoteId, searchNotes } from '@/lib/etapi-server';
+import { getNote, getNoteContent, getThemeSongUrl, getPortraitImageNoteId, searchNotes, resolveNoteRelations } from '@/lib/etapi-server';
 
 describe('/api/public/lore/[id]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(searchNotes).mockResolvedValue([]);
+    vi.mocked(resolveNoteRelations).mockResolvedValue([]);
   });
 
   it('returns 503 when AllCodex is not configured', async () => {
@@ -144,8 +146,8 @@ describe('/api/public/lore/[id]', () => {
       attributes: [
         { attributeId: 'a1', noteId: 'lore-1', type: 'label', name: 'loreType', value: 'character', isInheritable: false },
         { attributeId: 'a2', noteId: 'lore-1', type: 'label', name: 'customLabel', value: 'val', isInheritable: false },
-        { attributeId: 'a4', noteId: 'lore-1', type: 'relation', name: 'portrait', value: 'img-1', isInheritable: false },
       ],
+      resolvedRelations: [],
       portraitImageNoteId: 'img-1',
       themeSongUrl: 'https://song-url',
       dateModified: '2026-06-09T12:00:00Z',

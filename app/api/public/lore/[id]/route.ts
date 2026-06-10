@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPublicEtapiCreds } from "@/lib/get-creds";
 import { getCoreShareNoteAccess, normalizeCoreShareHtml } from "@/lib/core-share-server";
-import { getNote, getNoteContent, getThemeSongUrl, getPortraitImageNoteId, searchNotes } from "@/lib/etapi-server";
+import { getNote, getNoteContent, getThemeSongUrl, getPortraitImageNoteId, searchNotes, resolveNoteRelations } from "@/lib/etapi-server";
 import { handleRouteError, notConfigured } from "@/lib/route-error";
 import { sanitizeLoreHtml } from "@/lib/sanitize";
 
@@ -69,8 +69,27 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     ]);
 
     const filteredAttributes = (note.attributes ?? []).filter(
-      (attr) => !(attr.type === "label" && systemLabels.has(attr.name))
+      (attr) => attr.type === "label" && !systemLabels.has(attr.name)
     );
+
+    // Resolve relations, filtering out non-public/draft target notes
+    const rawRelations = await resolveNoteRelations(creds, note);
+    const resolvedRelations = [];
+    for (const rel of rawRelations) {
+      try {
+        const target = await getNote(creds, rel.targetNoteId);
+        if (target) {
+          const isTargetHidden = (target.attributes ?? []).some(
+            (attr) => attr.type === "label" && (attr.name === "draft" || attr.name === "gmOnly")
+          );
+          if (!isTargetHidden) {
+            resolvedRelations.push(rel);
+          }
+        }
+      } catch {
+        // target not found or error, skip
+      }
+    }
 
     // Resolve loreType attribute value
     const loreType = (note.attributes ?? []).find((attr) => attr.name === "loreType")?.value ?? null;
@@ -81,6 +100,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       loreType,
       contentHtml: sanitizeLoreHtml(normalizeCoreShareHtml(creds.url, noteContent)),
       attributes: filteredAttributes,
+      resolvedRelations,
       portraitImageNoteId,
       themeSongUrl,
       dateModified: note.utcDateModified || note.dateModified || "",

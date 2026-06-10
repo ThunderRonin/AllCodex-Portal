@@ -37,6 +37,12 @@ export default function PublicHomePage() {
     retry: false,
   });
 
+  const { data: publishedNotes, isLoading: isNotesLoading } = useQuery<{ results: SearchResult[] }>({
+    queryKey: ["public-lore-list"],
+    queryFn: () => fetchJsonOrThrow("/api/public/search?q=%23lore"),
+    retry: false,
+  });
+
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
@@ -97,7 +103,7 @@ export default function PublicHomePage() {
       </header>
 
       {/* Hero Section */}
-      <section className="flex-1 flex flex-col items-center justify-center max-w-4xl mx-auto px-5 py-12 md:py-16 w-full space-y-8">
+      <section className="flex-1 flex flex-col items-center justify-center max-w-4xl mx-auto px-5 py-12 md:py-16 w-full space-y-12">
         <div className="text-center space-y-4">
           {/* Glowing Scroll Logo */}
           <div className="relative inline-flex items-center justify-center p-6 bg-primary/5 rounded-full border border-primary/15 shadow-[0_0_50px_rgba(212,175,55,0.05)] mb-2">
@@ -164,7 +170,7 @@ export default function PublicHomePage() {
         </div>
 
         {/* Landing Content / Grimoire Box */}
-        <div className="w-full max-w-3xl mt-8">
+        <div className="w-full max-w-3xl">
           {isLoading ? (
             <div className="space-y-4">
               <Skeleton className="h-8 w-1/3 bg-neutral-800" />
@@ -182,16 +188,78 @@ export default function PublicHomePage() {
               <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-primary/40 group-hover:border-primary transition-all duration-500" />
               <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary/40 group-hover:border-primary transition-all duration-500" />
 
-              <h3 className="text-2xl font-bold text-primary mb-4 text-center tracking-wider" style={{ fontFamily: "var(--font-cinzel)" }}>
-                {data.title}
-              </h3>
-              
-              <div className="h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent w-full mb-6" />
+              {data.title === "root" ? (
+                <div className="space-y-4 text-center py-4">
+                  <h3 className="text-2xl font-bold text-primary tracking-wider" style={{ fontFamily: "var(--font-cinzel)" }}>
+                    AllCodex Archives
+                  </h3>
+                  <div className="h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent w-full mb-4" />
+                  <p className="font-[var(--font-crimson)] text-lg md:text-xl leading-relaxed text-neutral-300">
+                    Welcome to the public chronicles. Use the search bar above to look for specific entries, or browse the published lore records below.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <h3 className="text-2xl font-bold text-primary mb-4 text-center tracking-wider" style={{ fontFamily: "var(--font-cinzel)" }}>
+                    {data.title}
+                  </h3>
+                  
+                  <div className="h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent w-full mb-6" />
 
-              <div
-                className="lore-content prose prose-invert max-w-none font-[var(--font-crimson)] text-base md:text-lg leading-relaxed text-neutral-300"
-                dangerouslySetInnerHTML={{ __html: data.contentHtml }}
-              />
+                  <div
+                    className="lore-content prose prose-invert max-w-none font-[var(--font-crimson)] text-base md:text-lg leading-relaxed text-neutral-300"
+                    dangerouslySetInnerHTML={{ __html: data.contentHtml }}
+                  />
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Browse Section */}
+        <div className="w-full max-w-3xl space-y-6">
+          <div className="flex items-center gap-2 border-b border-primary/15 pb-2">
+            <BookOpen className="h-4 w-4 text-primary" />
+            <h3 className="text-lg font-bold uppercase tracking-[0.18em] text-primary" style={{ fontFamily: "var(--font-cinzel)" }}>
+              Chronicle Index
+            </h3>
+          </div>
+
+          {isNotesLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Skeleton className="h-24 w-full bg-neutral-800" />
+              <Skeleton className="h-24 w-full bg-neutral-800" />
+            </div>
+          ) : !publishedNotes || publishedNotes.results.length === 0 ? (
+            <div className="border border-primary/10 bg-neutral-900/10 p-6 text-center text-sm text-muted-foreground rounded-sm">
+              No public lore entries have been published yet.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {publishedNotes.results.map((note) => (
+                <Link
+                  key={note.id}
+                  href={`/public/lore/${note.id}`}
+                  className="group relative block p-5 border border-primary/15 bg-neutral-900/20 hover:bg-neutral-900/40 hover:border-primary/50 transition-all duration-300 shadow-md hover:shadow-[0_4px_20px_rgba(212,175,55,0.05)] rounded-md"
+                >
+                  {/* Decorative corner indicator */}
+                  <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-primary/20 group-hover:border-primary transition-all duration-300" />
+                  
+                  <span className="text-[9px] text-muted-foreground uppercase tracking-widest block mb-1">
+                    Lore Entry
+                  </span>
+                  
+                  <h4 className="text-base font-bold text-primary/90 group-hover:text-primary transition-colors duration-200" style={{ fontFamily: "var(--font-cinzel)" }}>
+                    {note.title}
+                  </h4>
+                  
+                  {note.path && note.path !== note.title && (
+                    <p className="text-[10px] text-muted-foreground/70 truncate mt-1">
+                      {note.path}
+                    </p>
+                  )}
+                </Link>
+              ))}
             </div>
           )}
         </div>
