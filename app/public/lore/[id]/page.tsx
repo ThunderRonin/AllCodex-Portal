@@ -30,13 +30,19 @@ interface PublicLoreDetail {
   resolvedRelations?: ResolvedRelation[];
 }
 
-function toDisplayName(key: string | null): string {
-  if (!key) return "";
-  return key
-    .replace(/([A-Z])/g, " $1")
-    .replace(/^./, (str) => str.toUpperCase())
-    .trim();
+function toDisplayName(value: string | null): string {
+  if (!value) return "";
+  return value
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/^rel/, "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
+
+const HIDDEN_LABELS = [
+  "template", "iconClass", "cssClass", "loreType", "lore", "pageTemplate", "bookTheme",
+  "draft", "gmOnly", "shareAlias", "shareCredentials", "shareRoot", "themeSongUrl",
+];
 
 function relationTone(name: string): "violet" | "emerald" | "rose" | "amber" | "blue" | "default" {
   const n = name.toLowerCase();
@@ -193,6 +199,17 @@ export default function PublicLoreDetailPage() {
 
   const spotifyEmbedUrl = data?.themeSongUrl ? getSpotifyEmbedUrl(data.themeSongUrl) : null;
 
+  const allLabels = data?.attributes?.filter(
+    (a) => 
+      !HIDDEN_LABELS.includes(a.name) && 
+      !a.name.startsWith("Label:") && 
+      !a.name.startsWith("Relation:") &&
+      !(a.value && (a.value.includes("promoted") || a.value.includes("alias=")))
+  ) ?? [];
+
+  const details = allLabels.filter(a => a.value && a.value.trim() !== "");
+  const tags = allLabels.filter(a => !a.value || a.value.trim() === "");
+
   // Group relations by name
   const groupedRelations: Record<string, ResolvedRelation[]> = {};
   (data?.resolvedRelations ?? []).forEach((rel) => {
@@ -291,7 +308,7 @@ export default function PublicLoreDetailPage() {
                     <div className="space-y-0.5">
                       <DetailField label="Title" value={data.title} />
                       <DetailField label="Type" value={toDisplayName(data.loreType)} />
-                      {data.attributes && data.attributes.map((attr) => (
+                      {details.slice(0, 6).map((attr) => (
                         <DetailField
                           key={`${attr.name}-${attr.value}`}
                           label={toDisplayName(attr.name)}
@@ -301,6 +318,19 @@ export default function PublicLoreDetailPage() {
                       ))}
                     </div>
                   </div>
+
+                  {tags.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="wiki-rail-kicker">Tags</p>
+                      <div className="flex flex-wrap gap-2">
+                        {tags.map((attr) => (
+                          <span key={attr.name} className="wiki-relation-chip wiki-relation-chip--violet">
+                            {toDisplayName(attr.name)}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
