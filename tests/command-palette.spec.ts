@@ -7,7 +7,7 @@ test.describe("Command Palette", () => {
     if (isMobile) return;
 
     await installPortalApiMocks(page);
-    await page.goto("/");
+    await page.goto("/dashboard");
 
     // Press Cmd+K (Mac) or Ctrl+K (Windows)
     const modifier = process.platform === "darwin" ? "Meta" : "Control";
@@ -33,7 +33,7 @@ test.describe("Command Palette", () => {
     if (isMobile) return;
 
     await installPortalApiMocks(page);
-    await page.goto("/");
+    await page.goto("/dashboard");
 
     const modifier = process.platform === "darwin" ? "Meta" : "Control";
     await page.keyboard.press(`${modifier}+k`);

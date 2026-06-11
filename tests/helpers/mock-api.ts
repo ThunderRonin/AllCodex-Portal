@@ -392,15 +392,18 @@ export async function installPortalApiMocks(page: Page, options: PortalMockOptio
       attributes: [
         { attributeId: "attr-lore-note-1", name: "lore", value: "", type: "label" },
         { attributeId: "attr-type-note-1", name: "loreType", value: "character", type: "label" },
+        { attributeId: "attr-alias-note-1", name: "shareAlias", value: "aria-vale", type: "label" },
       ],
       content: "<h1>Aria Vale</h1><p>Warden of the northern archive.</p>",
     }),
     buildNote({
       noteId: "note-2",
       title: "Aether Keep",
+      parentNoteIds: ["note-1"],
       attributes: [
         { attributeId: "attr-lore-note-2", name: "lore", value: "", type: "label" },
         { attributeId: "attr-type-note-2", name: "loreType", value: "location", type: "label" },
+        { attributeId: "attr-draft-note-2", name: "draft", value: "", type: "label" },
       ],
       content: "<h1>Aether Keep</h1><p>Fortress built above the ley breach.</p>",
     }),
@@ -429,14 +432,38 @@ export async function installPortalApiMocks(page: Page, options: PortalMockOptio
     await fulfillJson(route, { loreRootNoteId: "root" });
   });
 
+  let shareRootNoteId: string | null = "note-1";
+
+  function isDescendant(noteId: string, ancestorId: string): boolean {
+    if (noteId === ancestorId) return true;
+    const note = notes.get(noteId);
+    if (!note || !note.parentNoteIds) return false;
+    for (const parentId of note.parentNoteIds) {
+      if (isDescendant(parentId, ancestorId)) return true;
+    }
+    return false;
+  }
+
   await page.route("**/api/share**", async (route) => {
     const method = route.request().method();
     if (method === "GET") {
-      await fulfillJson(route, { enabled: false, shareId: null, shareUrl: null });
+      const targetNote = shareRootNoteId ? notes.get(shareRootNoteId) : null;
+      await fulfillJson(route, {
+        configured: shareRootNoteId !== null,
+        noteId: shareRootNoteId,
+        title: targetNote?.title ?? null,
+        alias: targetNote?.attributes.find((a) => a.name === "shareAlias")?.value ?? null,
+        url: shareRootNoteId ? "http://localhost:3000" : null,
+      });
     } else if (method === "POST" || method === "PUT") {
-      await fulfillJson(route, { enabled: true, shareId: "share-123", shareUrl: "http://localhost:8080/share/share-123" });
+      const body = route.request().postDataJSON() as { noteId?: string };
+      if (body?.noteId) {
+        shareRootNoteId = body.noteId;
+      }
+      await fulfillJson(route, { noteId: shareRootNoteId, attributeId: "attr-1" });
     } else if (method === "DELETE") {
-      await fulfillJson(route, { enabled: false, shareId: null, shareUrl: null });
+      shareRootNoteId = null;
+      await fulfillJson(route, { configured: false, noteId: null, title: null, alias: null, url: null });
     } else {
       await route.fallback();
     }
@@ -444,7 +471,35 @@ export async function installPortalApiMocks(page: Page, options: PortalMockOptio
 
   // Must be registered AFTER **/api/share** so LIFO routing matches /api/share/tree first
   await page.route("**/api/share/tree**", async (route) => {
-    await fulfillJson(route, shareTree);
+    if (options.shareTree) {
+      await fulfillJson(route, options.shareTree);
+      return;
+    }
+    const items = Array.from(notes.values())
+      .filter((n) => n.attributes.some((a) => a.name === "lore"))
+      .map((n) => {
+        const isDraft = n.attributes.some((a) => a.name === "draft" && a.type === "label");
+        const isGmOnly = n.attributes.some((a) => a.name === "gmOnly" && a.type === "label");
+        const shareAlias = n.attributes.find((a) => a.name === "shareAlias")?.value ?? null;
+        const isProtected = n.attributes.some((a) => a.name === "shareCredentials" && a.type === "label");
+        const isInShareTree = shareRootNoteId ? isDescendant(n.noteId, shareRootNoteId) : false;
+        const isPublished = isInShareTree && !isDraft && !isGmOnly && !isProtected;
+
+        return {
+          noteId: n.noteId,
+          title: n.title,
+          loreType: n.attributes.find((a) => a.name === "loreType")?.value ?? null,
+          isDraft,
+          isGmOnly,
+          shareAlias,
+          isProtected,
+          isInShareTree,
+          isPublished,
+          shareUrl: isInShareTree ? `http://localhost:3000/public/lore/${shareAlias ?? n.noteId}` : null,
+          dateModified: n.dateModified,
+        };
+      });
+    await fulfillJson(route, items);
   });
 
   await page.route("**/api/timeline**", async (route) => {

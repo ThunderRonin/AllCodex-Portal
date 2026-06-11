@@ -122,11 +122,22 @@ export default function SharedPage() {
   const [filter, setFilter] = useState<FilterMode>("all");
   const [search, setSearch] = useState("");
 
-  const { data: items, isLoading } = useQuery<ShareItem[]>({
+  const { data: rawItems, isLoading } = useQuery<ShareItem[]>({
     queryKey: ["share-tree"],
     queryFn: () => fetch("/api/share/tree").then((r) => r.json()),
     staleTime: 30_000,
   });
+
+  const portalUrl =
+    process.env.NEXT_PUBLIC_PORTAL_URL ||
+    (typeof window !== "undefined" ? window.location.origin : "");
+
+  const items = rawItems?.map((item) => ({
+    ...item,
+    shareUrl: item.isInShareTree
+      ? `${portalUrl}/public/lore/${item.shareAlias || item.noteId}`
+      : null,
+  }));
 
   const { data: shareRootData } = useQuery<{ url: string | null; configured: boolean }>({
     queryKey: ["share-root"],

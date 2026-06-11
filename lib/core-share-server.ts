@@ -93,6 +93,30 @@ export async function fetchCoreShareNote(baseUrl: string, shareId: string): Prom
   return toCoreShareNote(await fetchCoreJson(baseUrl, `/share/${encodedShareId}`));
 }
 
+export interface CoreShareAttributePojo {
+  attributeId: string;
+  noteId: string;
+  type: string;
+  name: string;
+  value: string;
+}
+
+export interface CoreShareNotePojo {
+  noteId: string;
+  title: string;
+  type: string;
+  mime: string;
+  utcDateModified: string;
+  attributes: CoreShareAttributePojo[];
+}
+
+export async function fetchCoreShareNotePojo(baseUrl: string, noteId: string): Promise<CoreShareNotePojo | null> {
+  const encodedNoteId = encodeURIComponent(noteId);
+  const data = await fetchCoreJson(baseUrl, `/share/api/notes/${encodedNoteId}`);
+  if (!data) return null;
+  return data as CoreShareNotePojo;
+}
+
 export async function getCoreShareNoteAccess(baseUrl: string, noteId: string): Promise<CoreShareNoteAccess> {
   const encodedNoteId = encodeURIComponent(noteId);
   let response: Response;
@@ -114,6 +138,7 @@ export async function getCoreShareNoteAccess(baseUrl: string, noteId: string): P
 export function normalizeCoreShareHtml(baseUrl: string, html: string): string {
   const normalizedBase = normalizeBaseUrl(baseUrl);
   return html
+    .replace(/\b(src|href)=["']\/?share\/api\/images\//gi, `$1="/api/public/images/`)
     .replace(/\b(src|href)=["']\/share\/api\//gi, `$1="${normalizedBase}/share/api/`)
     .replace(/\b(src|href)=["']share\/api\//gi, `$1="${normalizedBase}/share/api/`)
     .replace(/\bhref=["']\.\/([^"']+)["']/gi, (_match, shareId: string) => {

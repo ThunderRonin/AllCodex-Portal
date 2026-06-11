@@ -71,6 +71,7 @@ interface Note {
   portraitImageNoteId: string | null;
   themeSongUrl: string | null;
   resolvedRelations: ResolvedRelation[];
+  isInShareTree?: boolean;
 }
 
 const HIDDEN_LABELS = [
@@ -807,6 +808,7 @@ export default function LoreDetailPage({
               <ShareSettings
                 noteId={id}
                 attributes={(note.attributes ?? []).filter((a) => a.type === "label")}
+                isInShareTree={note.isInShareTree}
               />
 
               <div className="wiki-side-note">

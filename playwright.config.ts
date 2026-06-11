@@ -32,6 +32,7 @@ export default defineConfig({
     baseURL: "http://localhost:3000",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
+    storageState: STORAGE_STATE,
   },
   webServer: {
     command: "bun run dev",

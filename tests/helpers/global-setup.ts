@@ -147,9 +147,44 @@ export default async function globalSetup(config: FullConfig) {
   const portalUrl =
     config.projects[0]?.use?.baseURL ?? "http://localhost:3000";
 
-  // Skip auth setup when integration env is absent — mocked tests don't need it
+  const writeMockStorageState = () => {
+    const mockStorageState = {
+      cookies: [
+        {
+          name: "allknower_token",
+          value: "test-owner-token",
+          domain: "localhost",
+          path: "/",
+          expires: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30,
+          httpOnly: true,
+          secure: false,
+          sameSite: "Lax" as const,
+        },
+        {
+          name: "allknower_url",
+          value: "http://localhost:3001",
+          domain: "localhost",
+          path: "/",
+          expires: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30,
+          httpOnly: true,
+          secure: false,
+          sameSite: "Lax" as const,
+        },
+      ],
+      origins: [],
+    };
+    const stateDir = path.dirname(STORAGE_STATE_PATH);
+    if (!fs.existsSync(stateDir)) fs.mkdirSync(stateDir, { recursive: true });
+    fs.writeFileSync(STORAGE_STATE_PATH, JSON.stringify(mockStorageState, null, 2), {
+      mode: 0o600,
+    });
+    console.log(`[global-setup] Mock storage state written → ${STORAGE_STATE_PATH}`);
+  };
+
+  // Write mock auth cookies when integration env is absent so mocked tests can run authenticated
   if (!process.env.TEST_OPENROUTER_API_KEY) {
-    console.log("[global-setup] TEST_OPENROUTER_API_KEY not set — skipping auth setup");
+    console.log("[global-setup] TEST_OPENROUTER_API_KEY not set — using mock auth");
+    writeMockStorageState();
     return;
   }
 
@@ -160,7 +195,8 @@ export default async function globalSetup(config: FullConfig) {
     const probe = await fetch(`${allknowerUrl}/api/auth/ok`, { signal: AbortSignal.timeout(3_000) });
     if (!probe.ok) throw new Error(`auth probe returned ${probe.status}`);
   } catch {
-    console.warn("[global-setup] AllKnower unreachable — skipping auth setup (mocked tests will still run)");
+    console.warn("[global-setup] AllKnower unreachable — fallback to mock storage state");
+    writeMockStorageState();
     return;
   }
 

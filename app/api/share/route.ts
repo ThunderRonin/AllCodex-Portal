@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getEtapiCreds } from "@/lib/get-creds";
 import { handleRouteError, notConfigured } from "@/lib/route-error";
-import { searchNotes, createAttribute, deleteAttribute } from "@/lib/etapi-server";
+import {
+  searchNotes,
+  createAttribute,
+  deleteAttribute,
+  getNote,
+  getBranch,
+  deleteBranch,
+  createBranch,
+} from "@/lib/etapi-server";
 
 /**
  * GET /api/share
@@ -19,12 +27,13 @@ export async function GET() {
 
     const note = notes[0];
     const alias = note.attributes.find((a) => a.name === "shareAlias")?.value ?? null;
+    const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "/";
     return NextResponse.json({
       configured: true,
       noteId: note.noteId,
       title: note.title,
       alias,
-      url: `${creds.url}/share/${alias ?? note.noteId}`,
+      url: portalUrl,
     });
   } catch (err) {
     return handleRouteError(err);
@@ -45,6 +54,26 @@ export async function PUT(req: NextRequest) {
     const { noteId } = body as { noteId?: string };
     if (!noteId) {
       return NextResponse.json({ error: "noteId is required" }, { status: 400 });
+    }
+
+    // Fetch the note with ID _share
+    const shareNote = await getNote(creds, "_share");
+    let branchExists = false;
+    if (shareNote.childBranchIds && shareNote.childBranchIds.length > 0) {
+      for (const branchId of shareNote.childBranchIds) {
+        const branch = await getBranch(creds, branchId);
+        if (branch) {
+          if (branch.noteId === noteId) {
+            branchExists = true;
+          } else {
+            await deleteBranch(creds, branchId);
+          }
+        }
+      }
+    }
+
+    if (!branchExists) {
+      await createBranch(creds, { noteId, parentNoteId: "_share" });
     }
 
     // Remove existing #shareRoot labels
@@ -70,3 +99,4 @@ export async function PUT(req: NextRequest) {
     return handleRouteError(err);
   }
 }
+

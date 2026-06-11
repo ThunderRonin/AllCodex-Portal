@@ -44,11 +44,12 @@ export interface ShareAttribute {
 interface ShareSettingsProps {
   noteId: string;
   attributes: ShareAttribute[];
+  isInShareTree?: boolean;
 }
 
 type ToggleTarget = "draft" | "gmOnly";
 
-export function ShareSettings({ noteId, attributes }: ShareSettingsProps) {
+export function ShareSettings({ noteId, attributes, isInShareTree }: ShareSettingsProps) {
   const qc = useQueryClient();
 
   // Which toggle is currently saving
@@ -74,18 +75,10 @@ export function ShareSettings({ noteId, attributes }: ShareSettingsProps) {
   const currentAlias = shareAliasAttr?.value ?? "";
   const isProtected = Boolean(shareCredsAttr);
 
-  // Fetch AllCodex URL for computing share links
-  const { data: statusData } = useQuery<{
-    allcodex: { url: string | null };
-  }>({
-    queryKey: ["config-status"],
-    queryFn: () => fetch("/api/config/status").then((r) => r.json()),
-    staleTime: 60_000,
-  });
-  const coreUrl = statusData?.allcodex?.url ?? "";
-  const shareUrl = coreUrl
-    ? `${coreUrl}/share/${currentAlias || noteId}`
-    : `/share/${currentAlias || noteId}`;
+  const portalUrl =
+    process.env.NEXT_PUBLIC_PORTAL_URL ||
+    (typeof window !== "undefined" ? window.location.origin : "");
+  const shareUrl = `${portalUrl}/public/lore/${currentAlias || noteId}`;
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -209,6 +202,8 @@ export function ShareSettings({ noteId, attributes }: ShareSettingsProps) {
               "cursor-pointer gap-1 text-xs select-none transition-colors border",
               isDraft
                 ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30"
+                : isInShareTree === false
+                ? "bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20"
                 : "bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20"
             )}
             onClick={() => toggle("draft", draftAttr)}
@@ -218,7 +213,7 @@ export function ShareSettings({ noteId, attributes }: ShareSettingsProps) {
             ) : (
               <FileText className="h-3 w-3" />
             )}
-            {isDraft ? "Draft" : "Published"}
+            {isDraft ? "Draft" : isInShareTree === false ? "Not Shared" : "Published"}
           </Badge>
 
           {/* Visible / GM Only */}
@@ -256,13 +251,18 @@ export function ShareSettings({ noteId, attributes }: ShareSettingsProps) {
             Share URL
           </p>
           <a
-            href={coreUrl ? shareUrl : undefined}
+            href={shareUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="block text-xs text-primary/70 hover:text-primary break-all font-mono transition-colors"
           >
             {shareUrl}
           </a>
+          {!isDraft && !isGmOnly && isInShareTree === false && (
+            <p className="text-[10px] text-yellow-500/90 font-medium mt-1 leading-normal">
+              ⚠️ This note is not in the share tree. Configure the Share Root in Settings and ensure this note is a descendant of it.
+            </p>
+          )}
         </div>
 
         {/* Custom alias slug */}
