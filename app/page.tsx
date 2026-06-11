@@ -1,9 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Lock, Scroll, Search, Loader2, BookOpen } from "lucide-react";
+import { Lock, Search, Loader2, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { GrimoireLogo } from "@/components/portal/GrimoireLogo";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -87,7 +88,7 @@ export default function PublicHomePage() {
       {/* Header */}
       <header className="border-b border-primary/10 bg-black/40 backdrop-blur-md px-5 py-4 w-full">
         <div className="mx-auto flex max-w-5xl items-center gap-3">
-          <Scroll className="h-5 w-5 text-primary" />
+          <GrimoireLogo size={20} />
           <div>
             <h1 className="text-sm font-bold uppercase tracking-[0.25em] text-primary" style={{ fontFamily: "var(--font-cinzel)" }}>
               AllCodex
@@ -108,7 +109,7 @@ export default function PublicHomePage() {
           {/* Glowing Scroll Logo */}
           <div className="relative inline-flex items-center justify-center p-6 bg-primary/5 rounded-full border border-primary/15 shadow-[0_0_50px_rgba(212,175,55,0.05)] mb-2">
             <div className="absolute inset-0 rounded-full bg-primary/10 blur-xl animate-pulse" />
-            <Scroll className="h-16 w-16 text-primary relative z-10 filter drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]" />
+            <GrimoireLogo size={64} className="relative z-10 filter drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]" />
           </div>
           
           <h2 className="text-4xl md:text-6xl font-bold tracking-[0.3em] uppercase text-primary" style={{ fontFamily: "var(--font-cinzel)" }}>

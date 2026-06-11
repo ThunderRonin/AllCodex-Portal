@@ -26,13 +26,13 @@ import {
   CalendarDays,
   BookMarked,
   Upload,
-  Scroll,
   Globe,
   Plus,
   BarChart2,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { GrimoireLogo } from "@/components/portal/GrimoireLogo";
 
 const navItems = [
   {
@@ -85,7 +85,7 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="px-4 py-3">
         <div className="flex items-center gap-2">
-          <Scroll className="h-5 w-5 text-primary" />
+          <GrimoireLogo size={20} />
           <span className="font-bold text-primary tracking-wider text-sm uppercase" style={{ fontFamily: "var(--font-cinzel)" }}>
             AllCodex
           </span>

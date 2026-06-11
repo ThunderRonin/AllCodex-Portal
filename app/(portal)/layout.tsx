@@ -1,7 +1,7 @@
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/portal/AppSidebar";
 import { Separator } from "@/components/ui/separator";
-import { Scroll } from "lucide-react";
+import { GrimoireLogo } from "@/components/portal/GrimoireLogo";
 import { ThemeToggle } from "@/components/portal/ThemeToggle";
 import { NotificationBell } from "@/components/portal/NotificationBell";
 import { CopilotProvider } from "@/components/portal/CopilotProvider";
@@ -25,7 +25,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="h-4 bg-border/60" />
           <div className="flex items-center gap-2">
-            <Scroll className="h-4 w-4 text-primary/70" />
+            <GrimoireLogo size={18} />
             <span
               className="text-xs font-semibold text-primary tracking-[0.2em] uppercase"
               style={{ fontFamily: "var(--font-cinzel)" }}

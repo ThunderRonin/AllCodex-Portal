@@ -1,0 +1,54 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Stylized Grimoire Book Vector Logo (Pentagram Version) -->
+  
+  <!-- Outer glowing background aura -->
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffaa00" stop-opacity="0.15" />
+      <stop offset="100%" stop-color="#ffaa00" stop-opacity="0" />
+    </radialGradient>
+    
+    <!-- Gold gradient for metallic surfaces -->
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffe082" />
+      <stop offset="50%" stop-color="#ffaa00" />
+      <stop offset="100%" stop-color="#b17200" />
+    </linearGradient>
+  </defs>
+
+  <circle cx="100" cy="100" r="90" fill="url(#glow)" />
+
+  <!-- Book Cover Background (Dark violet-black leather cover) -->
+  <rect x="45" y="25" width="115" height="150" rx="8" fill="#120f18" stroke="url(#gold)" stroke-width="2" />
+  
+  <!-- Book Spine -->
+  <rect x="35" y="25" width="15" height="150" rx="3" fill="url(#gold)" />
+  <line x1="39" y1="45" x2="46" y2="45" stroke="#120f18" stroke-width="2" />
+  <line x1="39" y1="75" x2="46" y2="75" stroke="#120f18" stroke-width="2" />
+  <line x1="39" y1="100" x2="46" y2="100" stroke="#120f18" stroke-width="2" />
+  <line x1="39" y1="125" x2="46" y2="125" stroke="#120f18" stroke-width="2" />
+  <line x1="39" y1="155" x2="46" y2="155" stroke="#120f18" stroke-width="2" />
+
+  <!-- Gold Corner Protectors -->
+  <path d="M145 25 L160 25 L160 40 Z" fill="url(#gold)" />
+  <path d="M145 175 L160 175 L160 160 Z" fill="url(#gold)" />
+  
+  <!-- Embossed Frame border on the cover -->
+  <rect x="60" y="38" width="85" height="124" rx="4" fill="none" stroke="url(#gold)" stroke-width="1" stroke-opacity="0.6" />
+
+  <!-- Celestial Arcane Symbol (Center of Cover) -->
+  <circle cx="102.5" cy="100" r="28" stroke="url(#gold)" stroke-width="1.5" fill="none" />
+  <circle cx="102.5" cy="100" r="22" stroke="url(#gold)" stroke-width="1" fill="none" stroke-dasharray="2 2" stroke-opacity="0.8" />
+  
+  <!-- Intersecting Pentagram (5-Pointed Arcane Star) -->
+  <path d="M102.5 75 L117.2 120.2 L78.7 92.3 L126.3 92.3 L87.8 120.2 Z" stroke="url(#gold)" stroke-width="1.5" fill="none" stroke-linejoin="round" />
+
+  <!-- Core Celestial Dot -->
+  <circle cx="102.5" cy="100" r="3" fill="url(#gold)" />
+
+  <!-- Arcane dots around the symbol -->
+  <circle cx="102.5" cy="67" r="1.5" fill="url(#gold)" />
+  <circle cx="102.5" cy="133" r="1.5" fill="url(#gold)" />
+  <circle cx="69" cy="100" r="1.5" fill="url(#gold)" />
+  <circle cx="136" cy="100" r="1.5" fill="url(#gold)" />
+</svg>
