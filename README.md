@@ -2,17 +2,17 @@
 
 A web portal for [AllCodex](https://github.com/ThunderRonin/AllCodex) (a customized TriliumNext instance) and [AllKnower](https://github.com/ThunderRonin/AllKnower), the AI knowledge service that powers it. Built with Next.js 16, shadcn/ui, and TanStack Query.
 
-The portal gives you a clean interface for browsing lore, running brain dumps, and using AI tools — the only user-facing surface in the AllCodex stack.
+The portal gives you a clean interface for browsing lore, running brain dumps, and using AI tools, which is the only user-facing surface in the AllCodex stack.
 
 ## Features
 
-- **Lore Browser** — browse, create, and edit notes tagged with `#lore` in AllCodex
-- **Brain Dump** — paste raw worldbuilding thoughts and let AllKnower extract and file entities automatically
-- **Article Copilot** — AI writing assistant that opens as a side sheet on any lore page; proposes edits, linked notes, and relation changes within an explicit writable scope; conversation persists across navigation
-- **AI Tools** — consistency checker, lore gap detector, and relationship suggestions powered by AllKnower
-- **Semantic Search** — RAG-based search across your lore using AllKnower's vector index, plus direct ETAPI label queries
-- **Light / Dark theme** — parchment (light) and grimoire (dark) modes toggled per-session
-- **Settings** — connect to AllCodex via ETAPI token or password login, and AllKnower via bearer token or sign-in
+- **Lore Browser**: Browse, create, and edit notes tagged with `#lore` in AllCodex.
+- **Brain Dump**: Paste raw worldbuilding thoughts so AllKnower can extract and file entities.
+- **Article Copilot**: An AI writing assistant that opens as a side sheet on any lore page. It proposes edits, linked notes, and relation changes within an explicit writable scope. The conversation persists across navigation.
+- **AI Tools**: Consistency checker, lore gap detector, and relationship suggestions powered by AllKnower.
+- **Semantic Search**: RAG-based search across your lore using AllKnower's vector index, plus direct ETAPI label queries.
+- **Light / Dark theme**: Parchment (light) and grimoire (dark) modes toggled per-session.
+- **Settings**: Connect to AllCodex via ETAPI token or password login, and AllKnower via bearer token or sign-in.
 
 ## Requirements
 
@@ -27,7 +27,7 @@ bun install
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and go to Settings to connect to AllCodex and AllKnower. Credentials are stored as HTTP-only cookies — no `.env` required, though env vars work as a fallback.
+Open [http://localhost:3000](http://localhost:3000) and go to Settings to connect to AllCodex and AllKnower. The portal stores credentials in HTTP-only cookies. No `.env` is required, though env vars work as a fallback.
 
 ### Environment variables (optional)
 
@@ -42,7 +42,7 @@ ALLCODEX_URL=http://localhost:8080
 ALLCODEX_ETAPI_TOKEN=your_token_here
 ```
 
-Cookie-based settings take priority when present. The Portal enforces a strict integration boundary: backend tokens never reach the browser. AllCodex ETAPI tokens are generated server-side and passed to AllKnower for encrypted, per-user storage.
+Cookie-based settings take priority when present. The Portal enforces a strict integration boundary: backend tokens never reach the browser. The portal generates AllCodex ETAPI tokens server-side and passes them to AllKnower for encrypted, per-user storage.
 
 ## Project Structure
 
