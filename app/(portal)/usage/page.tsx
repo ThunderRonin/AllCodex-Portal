@@ -63,7 +63,7 @@ export default function UsagePage() {
         >
           Token Usage
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">Last 30 days of LLM usage across all tasks</p>
+        <p className="text-sm text-muted-foreground mt-1">Last 30 days of parser usage across all tasks</p>
       </header>
 
       {error && <ServiceBanner service="AllKnower" error={error} />}

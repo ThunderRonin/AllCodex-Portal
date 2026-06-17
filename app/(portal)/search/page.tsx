@@ -114,7 +114,7 @@ function SearchContent() {
           <TabsList className="mb-3">
             <TabsTrigger value="rag" className="gap-1.5 text-xs">
               <Sparkles className="h-3 w-3" />
-              Semantic (AI)
+              Semantic
             </TabsTrigger>
             <TabsTrigger value="etapi" className="gap-1.5 text-xs">
               <Tag className="h-3 w-3" />
@@ -140,7 +140,7 @@ function SearchContent() {
         </div>
         {mode === "rag" && (
           <p className="text-xs text-muted-foreground">
-            AI semantic search finds conceptually related entries, even with
+            Semantic search finds conceptually related entries, even with
             different wording.
           </p>
         )}

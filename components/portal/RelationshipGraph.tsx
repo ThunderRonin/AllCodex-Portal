@@ -721,7 +721,7 @@ export function RelationshipGraph({ noteId, noteTitle }: RelationshipGraphProps)
                     </span>
                     <span className="flex items-center gap-1">
                       <span className="inline-block w-4 h-0.5 border-t border-dashed border-muted-foreground" />
-                      AI Suggested
+                      Suggested
                     </span>
                   </div>
                 </div>
@@ -741,7 +741,7 @@ export function RelationshipGraph({ noteId, noteTitle }: RelationshipGraphProps)
                       className="text-[10px] uppercase tracking-wider text-muted-foreground"
                       style={{ fontFamily: "var(--font-cinzel)" }}
                     >
-                      AI Suggestions ({aiSuggestions.length})
+                      Suggestions ({aiSuggestions.length})
                     </p>
                     <Button
                       variant="outline"

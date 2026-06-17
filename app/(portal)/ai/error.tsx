@@ -25,9 +25,9 @@ export default function AIToolsError({
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center px-4">
-      <h2 className="font-cinzel text-xl text-foreground">AI tools unavailable</h2>
+      <h2 className="font-cinzel text-xl text-foreground">Automated tools unavailable</h2>
       <p className="text-sm text-muted-foreground max-w-md">
-        {error.message || "Could not load this AI tool. Verify that AllKnower is connected in Settings."}
+        {error.message || "Could not load this tool. Verify that AllKnower is connected in Settings."}
       </p>
       <Button variant="outline" onClick={reset}>
         Try again

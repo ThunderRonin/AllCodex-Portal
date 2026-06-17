@@ -65,7 +65,7 @@ export function CommandPalette() {
           </CommandItem>
         </CommandGroup>
         <CommandSeparator />
-        <CommandGroup heading="AI Tools">
+        <CommandGroup heading="Automated Tools">
           <CommandItem onSelect={() => runCommand(() => router.push("/ai/consistency"))}>
             <Search className="mr-2 h-4 w-4" />
             <span>Consistency Checker</span>

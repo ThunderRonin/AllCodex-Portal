@@ -783,7 +783,7 @@ export default function LoreDetailPage({
                 <Button asChild variant="outline" className="w-full gap-2 border-accent/40 text-accent hover:bg-accent/10">
                   <Link href={`/ai/relationships?noteId=${id}`}>
                     <Sparkles className="h-4 w-4" />
-                    View AI Suggestions
+                    View Suggestions
                   </Link>
                 </Button>
               </div>

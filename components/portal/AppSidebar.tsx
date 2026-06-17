@@ -60,7 +60,7 @@ const navItems = [
     ],
   },
   {
-    label: "AI Tools",
+    label: "Automated Tools",
     items: [
       { href: "/ai/consistency", icon: ShieldAlert, label: "Consistency" },
       { href: "/ai/relationships", icon: Network, label: "Relationships" },
